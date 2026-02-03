@@ -6,7 +6,36 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { IconDeviceFloppy, IconCheck } from "@tabler/icons-react"
+import { FileUpload } from "@/components/ui/file-upload"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  IconDeviceFloppy,
+  IconCheck,
+  IconPlus,
+  IconEdit,
+  IconTrash,
+  IconStar,
+  IconStarFilled,
+} from "@tabler/icons-react"
+import type { Id } from "../../convex/_generated/dataModel"
+import { toast } from "sonner"
 
 interface CompanyFormData {
   name: string
@@ -15,9 +44,15 @@ interface CompanyFormData {
   email: string
   website: string
   taxId: string
+}
+
+interface BankAccountFormData {
   bankName: string
-  bankAccount: string
-  bankAccountName: string
+  accountNumber: string
+  accountHolder: string
+  branch: string
+  swiftCode: string
+  isDefault: boolean
 }
 
 const defaultCompany: CompanyFormData = {
@@ -27,18 +62,43 @@ const defaultCompany: CompanyFormData = {
   email: "",
   website: "",
   taxId: "",
+}
+
+const defaultBankAccount: BankAccountFormData = {
   bankName: "",
-  bankAccount: "",
-  bankAccountName: "",
+  accountNumber: "",
+  accountHolder: "",
+  branch: "",
+  swiftCode: "",
+  isDefault: false,
 }
 
 export function SettingsPage() {
-  const companySettings = useQuery(api.companySettings.get)
+  const companySettings = useQuery(api.companySettings.getWithUrls)
   const upsertSettings = useMutation(api.companySettings.upsert)
+
+  const bankAccounts = useQuery(api.bankAccounts.list)
+  const createBankAccount = useMutation(api.bankAccounts.create)
+  const updateBankAccount = useMutation(api.bankAccounts.update)
+  const deleteBankAccount = useMutation(api.bankAccounts.remove)
+  const setDefaultBankAccount = useMutation(api.bankAccounts.setDefault)
+
+  const updateCompanyLogo = useMutation(api.files.updateCompanyLogo)
+  const removeCompanyLogo = useMutation(api.files.removeCompanyLogo)
+  const updateCompanySignature = useMutation(api.files.updateCompanySignature)
+  const removeCompanySignature = useMutation(api.files.removeCompanySignature)
+  const updateCompanyStamp = useMutation(api.files.updateCompanyStamp)
+  const removeCompanyStamp = useMutation(api.files.removeCompanyStamp)
 
   const [formData, setFormData] = useState<CompanyFormData>(defaultCompany)
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
+
+  // Bank account dialog state
+  const [bankDialogOpen, setBankDialogOpen] = useState(false)
+  const [bankFormData, setBankFormData] = useState<BankAccountFormData>(defaultBankAccount)
+  const [editingBankId, setEditingBankId] = useState<string | null>(null)
+  const [deleteBankId, setDeleteBankId] = useState<string | null>(null)
 
   // Load existing settings
   useEffect(() => {
@@ -50,9 +110,6 @@ export function SettingsPage() {
         email: companySettings.email || "",
         website: companySettings.website || "",
         taxId: companySettings.taxId || "",
-        bankName: companySettings.bankName || "",
-        bankAccount: companySettings.bankAccount || "",
-        bankAccountName: companySettings.bankAccountName || "",
       })
     }
   }, [companySettings])
@@ -65,9 +122,11 @@ export function SettingsPage() {
     try {
       await upsertSettings(formData)
       setSaveSuccess(true)
+      toast.success("Pengaturan berhasil disimpan")
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch (error) {
       console.error("Failed to save settings:", error)
+      toast.error("Gagal menyimpan pengaturan")
     } finally {
       setIsSaving(false)
     }
@@ -75,6 +134,106 @@ export function SettingsPage() {
 
   const updateField = (field: keyof CompanyFormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  // Bank account handlers
+  const handleOpenBankDialog = (account?: typeof bankAccounts extends (infer T)[] | undefined ? T : never) => {
+    if (account) {
+      setEditingBankId(account._id)
+      setBankFormData({
+        bankName: account.bankName,
+        accountNumber: account.accountNumber,
+        accountHolder: account.accountHolder,
+        branch: account.branch || "",
+        swiftCode: account.swiftCode || "",
+        isDefault: account.isDefault,
+      })
+    } else {
+      setEditingBankId(null)
+      setBankFormData(defaultBankAccount)
+    }
+    setBankDialogOpen(true)
+  }
+
+  const handleSaveBankAccount = async () => {
+    try {
+      if (editingBankId) {
+        await updateBankAccount({
+          id: editingBankId as Id<"bankAccounts">,
+          bankName: bankFormData.bankName,
+          accountNumber: bankFormData.accountNumber,
+          accountHolder: bankFormData.accountHolder,
+          branch: bankFormData.branch || undefined,
+          swiftCode: bankFormData.swiftCode || undefined,
+          isDefault: bankFormData.isDefault,
+        })
+        toast.success("Rekening berhasil diperbarui")
+      } else {
+        await createBankAccount({
+          bankName: bankFormData.bankName,
+          accountNumber: bankFormData.accountNumber,
+          accountHolder: bankFormData.accountHolder,
+          branch: bankFormData.branch || undefined,
+          swiftCode: bankFormData.swiftCode || undefined,
+          isDefault: bankFormData.isDefault,
+        })
+        toast.success("Rekening berhasil ditambahkan")
+      }
+      setBankDialogOpen(false)
+      setBankFormData(defaultBankAccount)
+      setEditingBankId(null)
+    } catch (error) {
+      console.error("Failed to save bank account:", error)
+      toast.error("Gagal menyimpan rekening")
+    }
+  }
+
+  const handleDeleteBankAccount = async () => {
+    if (deleteBankId) {
+      try {
+        await deleteBankAccount({ id: deleteBankId as Id<"bankAccounts"> })
+        toast.success("Rekening berhasil dihapus")
+      } catch (error) {
+        console.error("Failed to delete bank account:", error)
+        toast.error("Gagal menghapus rekening")
+      }
+      setDeleteBankId(null)
+    }
+  }
+
+  const handleSetDefault = async (id: string) => {
+    try {
+      await setDefaultBankAccount({ id: id as Id<"bankAccounts"> })
+      toast.success("Rekening utama berhasil diubah")
+    } catch (error) {
+      console.error("Failed to set default bank account:", error)
+      toast.error("Gagal mengubah rekening utama")
+    }
+  }
+
+  // File upload handlers
+  const handleLogoUpload = async (storageId: string) => {
+    await updateCompanyLogo({ logoFileId: storageId as Id<"_storage"> })
+  }
+
+  const handleLogoRemove = async () => {
+    await removeCompanyLogo()
+  }
+
+  const handleSignatureUpload = async (storageId: string) => {
+    await updateCompanySignature({ signatureFileId: storageId as Id<"_storage"> })
+  }
+
+  const handleSignatureRemove = async () => {
+    await removeCompanySignature()
+  }
+
+  const handleStampUpload = async (storageId: string) => {
+    await updateCompanyStamp({ stampFileId: storageId as Id<"_storage"> })
+  }
+
+  const handleStampRemove = async () => {
+    await removeCompanyStamp()
   }
 
   return (
@@ -167,48 +326,6 @@ export function SettingsPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Informasi Bank</CardTitle>
-            <CardDescription>
-              Data rekening bank untuk pembayaran invoice
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="bankName">Nama Bank</Label>
-              <Input
-                id="bankName"
-                placeholder="Bank Central Asia"
-                value={formData.bankName}
-                onChange={(e) => updateField("bankName", e.target.value)}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="bankAccount">Nomor Rekening</Label>
-                <Input
-                  id="bankAccount"
-                  placeholder="1234567890"
-                  value={formData.bankAccount}
-                  onChange={(e) => updateField("bankAccount", e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="bankAccountName">Atas Nama</Label>
-                <Input
-                  id="bankAccountName"
-                  placeholder="PT. Contoh Perusahaan"
-                  value={formData.bankAccountName}
-                  onChange={(e) => updateField("bankAccountName", e.target.value)}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         <div className="flex justify-end">
           <Button type="submit" disabled={isSaving} className="w-40">
             {saveSuccess ? (
@@ -227,6 +344,255 @@ export function SettingsPage() {
           </Button>
         </div>
       </form>
+
+      {/* Bank Accounts Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Rekening Bank</CardTitle>
+              <CardDescription>
+                Daftar rekening bank untuk pembayaran invoice
+              </CardDescription>
+            </div>
+            <Button onClick={() => handleOpenBankDialog()}>
+              <IconPlus className="h-4 w-4 mr-2" />
+              Tambah Rekening
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!bankAccounts || bankAccounts.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              Belum ada rekening bank. Tambahkan rekening pertama Anda.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {bankAccounts.map((account) => (
+                <div
+                  key={account._id}
+                  className="flex items-center justify-between p-4 border rounded-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleSetDefault(account._id)}
+                      className="text-yellow-500 hover:text-yellow-600"
+                      title={account.isDefault ? "Rekening Utama" : "Jadikan Rekening Utama"}
+                    >
+                      {account.isDefault ? (
+                        <IconStarFilled className="h-5 w-5" />
+                      ) : (
+                        <IconStar className="h-5 w-5" />
+                      )}
+                    </button>
+                    <div>
+                      <p className="font-medium">{account.bankName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {account.accountNumber} • a.n. {account.accountHolder}
+                      </p>
+                      {account.branch && (
+                        <p className="text-xs text-muted-foreground">
+                          Cabang: {account.branch}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleOpenBankDialog(account)}
+                    >
+                      <IconEdit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => setDeleteBankId(account._id)}
+                    >
+                      <IconTrash className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Branding Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Logo & Branding</CardTitle>
+          <CardDescription>
+            Upload logo perusahaan untuk ditampilkan pada dokumen
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FileUpload
+            currentImageUrl={companySettings?.logoUrl}
+            onUpload={handleLogoUpload}
+            onRemove={handleLogoRemove}
+            label="Upload Logo"
+            description="PNG, JPG atau SVG (max 2MB)"
+          />
+        </CardContent>
+      </Card>
+
+      {/* Signature & Stamp Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Tanda Tangan & Stempel</CardTitle>
+          <CardDescription>
+            Upload tanda tangan dan stempel untuk ditampilkan pada dokumen
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <Label className="mb-3 block">Tanda Tangan</Label>
+              <FileUpload
+                currentImageUrl={companySettings?.signatureUrl}
+                onUpload={handleSignatureUpload}
+                onRemove={handleSignatureRemove}
+                label="Upload Tanda Tangan"
+                description="PNG atau JPG dengan latar transparan"
+              />
+            </div>
+            <div>
+              <Label className="mb-3 block">Stempel Perusahaan</Label>
+              <FileUpload
+                currentImageUrl={companySettings?.stampUrl}
+                onUpload={handleStampUpload}
+                onRemove={handleStampRemove}
+                label="Upload Stempel"
+                description="PNG atau JPG dengan latar transparan"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Bank Account Dialog */}
+      <Dialog open={bankDialogOpen} onOpenChange={setBankDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingBankId ? "Edit Rekening Bank" : "Tambah Rekening Bank"}
+            </DialogTitle>
+            <DialogDescription>
+              Masukkan informasi rekening bank Anda
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="bankName">Nama Bank *</Label>
+              <Input
+                id="bankName"
+                placeholder="Bank Central Asia"
+                value={bankFormData.bankName}
+                onChange={(e) =>
+                  setBankFormData((prev) => ({ ...prev, bankName: e.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="accountNumber">Nomor Rekening *</Label>
+              <Input
+                id="accountNumber"
+                placeholder="1234567890"
+                value={bankFormData.accountNumber}
+                onChange={(e) =>
+                  setBankFormData((prev) => ({ ...prev, accountNumber: e.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="accountHolder">Atas Nama *</Label>
+              <Input
+                id="accountHolder"
+                placeholder="PT. Contoh Perusahaan"
+                value={bankFormData.accountHolder}
+                onChange={(e) =>
+                  setBankFormData((prev) => ({ ...prev, accountHolder: e.target.value }))
+                }
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="branch">Cabang</Label>
+                <Input
+                  id="branch"
+                  placeholder="KCP Jakarta Selatan"
+                  value={bankFormData.branch}
+                  onChange={(e) =>
+                    setBankFormData((prev) => ({ ...prev, branch: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="swiftCode">SWIFT Code</Label>
+                <Input
+                  id="swiftCode"
+                  placeholder="CENAIDJA"
+                  value={bankFormData.swiftCode}
+                  onChange={(e) =>
+                    setBankFormData((prev) => ({ ...prev, swiftCode: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="isDefault"
+                checked={bankFormData.isDefault}
+                onChange={(e) =>
+                  setBankFormData((prev) => ({ ...prev, isDefault: e.target.checked }))
+                }
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <Label htmlFor="isDefault" className="text-sm font-normal">
+                Jadikan sebagai rekening utama
+              </Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBankDialogOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              onClick={handleSaveBankAccount}
+              disabled={!bankFormData.bankName || !bankFormData.accountNumber || !bankFormData.accountHolder}
+            >
+              {editingBankId ? "Simpan Perubahan" : "Tambah Rekening"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Bank Account Confirmation */}
+      <AlertDialog open={!!deleteBankId} onOpenChange={() => setDeleteBankId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Rekening Bank?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini tidak dapat dibatalkan. Rekening bank akan dihapus secara permanen.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteBankAccount}
+              className="bg-destructive text-destructive-foreground"
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

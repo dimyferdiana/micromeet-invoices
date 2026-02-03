@@ -48,10 +48,25 @@ export default defineSchema({
     website: v.optional(v.string()),
     taxId: v.optional(v.string()),
     logo: v.optional(v.string()),
+    logoFileId: v.optional(v.id("_storage")),
+    signatureFileId: v.optional(v.id("_storage")),
+    stampFileId: v.optional(v.id("_storage")),
+    // Legacy bank fields (kept for backwards compatibility)
     bankName: v.optional(v.string()),
     bankAccount: v.optional(v.string()),
     bankAccountName: v.optional(v.string()),
   }),
+
+  // Bank accounts for multiple bank account support
+  bankAccounts: defineTable({
+    bankName: v.string(),
+    accountNumber: v.string(),
+    accountHolder: v.string(),
+    branch: v.optional(v.string()),
+    swiftCode: v.optional(v.string()),
+    isDefault: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_default", ["isDefault"]),
 
   // Invoices table
   invoices: defineTable({

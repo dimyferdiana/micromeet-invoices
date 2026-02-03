@@ -1,3 +1,5 @@
+import { useQuery } from "convex/react"
+import { api } from "../../../convex/_generated/api"
 import type { InvoiceFormData } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -8,13 +10,25 @@ interface InvoicePreviewProps {
 }
 
 export function InvoicePreview({ data }: InvoicePreviewProps) {
+  const companySettings = useQuery(api.companySettings.getWithUrls)
+  const defaultBankAccount = useQuery(api.bankAccounts.getDefault)
+
   return (
     <div className="bg-white p-8 shadow-lg max-w-4xl mx-auto" id="invoice-preview">
       {/* Header */}
       <div className="flex justify-between items-start mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-primary mb-2">INVOICE</h1>
-          <p className="text-lg font-semibold">{data.invoiceNumber}</p>
+        <div className="flex items-start gap-4">
+          {companySettings?.logoUrl && (
+            <img
+              src={companySettings.logoUrl}
+              alt="Company Logo"
+              className="max-h-16 max-w-32 object-contain"
+            />
+          )}
+          <div>
+            <h1 className="text-3xl font-bold text-primary mb-2">INVOICE</h1>
+            <p className="text-lg font-semibold">{data.invoiceNumber}</p>
+          </div>
         </div>
         <Badge className={statusColors[data.status]}>{statusLabels[data.status]}</Badge>
       </div>
@@ -99,11 +113,64 @@ export function InvoicePreview({ data }: InvoicePreviewProps) {
         </div>
       </div>
 
+      {/* Bank Account Info */}
+      {defaultBankAccount && (
+        <div className="bg-gray-50 p-4 rounded-lg mb-8">
+          <h3 className="text-sm font-semibold text-muted-foreground mb-2">INFORMASI PEMBAYARAN</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Bank</p>
+              <p className="font-medium">{defaultBankAccount.bankName}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Nomor Rekening</p>
+              <p className="font-medium">{defaultBankAccount.accountNumber}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Atas Nama</p>
+              <p className="font-medium">{defaultBankAccount.accountHolder}</p>
+            </div>
+            {defaultBankAccount.branch && (
+              <div>
+                <p className="text-sm text-muted-foreground">Cabang</p>
+                <p className="font-medium">{defaultBankAccount.branch}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Notes */}
       {data.notes && (
-        <div className="border-t pt-6">
+        <div className="border-t pt-6 mb-8">
           <h3 className="text-sm font-semibold text-muted-foreground mb-2">CATATAN</h3>
           <p className="text-muted-foreground whitespace-pre-line">{data.notes}</p>
+        </div>
+      )}
+
+      {/* Signature and Stamp Section */}
+      {(companySettings?.signatureUrl || companySettings?.stampUrl) && (
+        <div className="flex justify-end mt-8">
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground mb-2">Hormat kami,</p>
+            <div className="relative min-h-24 min-w-40 flex items-center justify-center">
+              {companySettings?.stampUrl && (
+                <img
+                  src={companySettings.stampUrl}
+                  alt="Company Stamp"
+                  className="absolute max-h-24 max-w-32 object-contain opacity-80"
+                />
+              )}
+              {companySettings?.signatureUrl && (
+                <img
+                  src={companySettings.signatureUrl}
+                  alt="Signature"
+                  className="relative max-h-16 max-w-28 object-contain z-10"
+                />
+              )}
+            </div>
+            <p className="font-medium mt-2">{data.company.name}</p>
+          </div>
         </div>
       )}
 

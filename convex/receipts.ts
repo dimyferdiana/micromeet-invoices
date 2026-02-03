@@ -92,3 +92,34 @@ export const remove = mutation({
     await ctx.db.delete(args.id);
   },
 });
+
+export const search = query({
+  args: {
+    searchTerm: v.optional(v.string()),
+    startDate: v.optional(v.string()),
+    endDate: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    let receipts = await ctx.db.query("receipts").order("desc").collect();
+
+    if (args.searchTerm && args.searchTerm.trim()) {
+      const term = args.searchTerm.toLowerCase().trim();
+      receipts = receipts.filter(
+        (receipt) =>
+          receipt.receiptNumber.toLowerCase().includes(term) ||
+          receipt.receivedFrom.toLowerCase().includes(term) ||
+          receipt.paymentFor.toLowerCase().includes(term)
+      );
+    }
+
+    // Filter by date range
+    if (args.startDate) {
+      receipts = receipts.filter((receipt) => receipt.date >= args.startDate!);
+    }
+    if (args.endDate) {
+      receipts = receipts.filter((receipt) => receipt.date <= args.endDate!);
+    }
+
+    return receipts;
+  },
+});

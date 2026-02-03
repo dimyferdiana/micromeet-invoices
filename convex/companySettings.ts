@@ -9,6 +9,36 @@ export const get = query({
   },
 });
 
+// Get company settings with file URLs
+export const getWithUrls = query({
+  args: {},
+  handler: async (ctx) => {
+    const settings = await ctx.db.query("companySettings").first();
+    if (!settings) return null;
+
+    let logoUrl: string | null = null;
+    let signatureUrl: string | null = null;
+    let stampUrl: string | null = null;
+
+    if (settings.logoFileId) {
+      logoUrl = await ctx.storage.getUrl(settings.logoFileId);
+    }
+    if (settings.signatureFileId) {
+      signatureUrl = await ctx.storage.getUrl(settings.signatureFileId);
+    }
+    if (settings.stampFileId) {
+      stampUrl = await ctx.storage.getUrl(settings.stampFileId);
+    }
+
+    return {
+      ...settings,
+      logoUrl,
+      signatureUrl,
+      stampUrl,
+    };
+  },
+});
+
 export const upsert = mutation({
   args: {
     name: v.string(),

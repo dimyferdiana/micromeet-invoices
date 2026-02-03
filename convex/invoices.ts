@@ -1,4 +1,4 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
 const lineItemValidator = v.object({
@@ -148,5 +148,125 @@ export const updateStatus = mutation({
       status: args.status,
       updatedAt: Date.now(),
     });
+  },
+});
+
+export const search = query({
+  args: {
+    searchTerm: v.optional(v.string()),
+    status: v.optional(
+      v.union(
+        v.literal("draft"),
+        v.literal("sent"),
+        v.literal("paid"),
+        v.literal("overdue"),
+        v.literal("cancelled")
+      )
+    ),
+    startDate: v.optional(v.string()),
+    endDate: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    let invoices;
+
+    if (args.status) {
+      invoices = await ctx.db
+        .query("invoices")
+        .withIndex("by_status", (q) => q.eq("status", args.status!))
+        .order("desc")
+        .collect();
+    } else {
+      invoices = await ctx.db.query("invoices").order("desc").collect();
+    }
+
+    if (args.searchTerm && args.searchTerm.trim()) {
+      const term = args.searchTerm.toLowerCase().trim();
+      invoices = invoices.filter(
+        (inv) =>
+          inv.invoiceNumber.toLowerCase().includes(term) ||
+          inv.customer.name.toLowerCase().includes(term)
+      );
+    }
+
+    // Filter by date range
+    if (args.startDate) {
+      invoices = invoices.filter((inv) => inv.date >= args.startDate!);
+    }
+    if (args.endDate) {
+      invoices = invoices.filter((inv) => inv.date <= args.endDate!);
+    }
+
+    return invoices;
+  },
+});
+
+// Check and update overdue invoices
+// This internal mutation checks all invoices with status "draft" or "sent"
+// and marks them as "overdue" if the due date has passed
+// Called by cron job daily at 00:00 UTC
+export const checkOverdueInvoices = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
+
+    // Get all invoices that could potentially be overdue
+    const draftInvoices = await ctx.db
+      .query("invoices")
+      .withIndex("by_status", (q) => q.eq("status", "draft"))
+      .collect();
+
+    const sentInvoices = await ctx.db
+      .query("invoices")
+      .withIndex("by_status", (q) => q.eq("status", "sent"))
+      .collect();
+
+    const potentiallyOverdue = [...draftInvoices, ...sentInvoices];
+    let updatedCount = 0;
+
+    for (const invoice of potentiallyOverdue) {
+      // Check if due date has passed (dueDate < today)
+      if (invoice.dueDate < today) {
+        await ctx.db.patch(invoice._id, {
+          status: "overdue",
+          updatedAt: Date.now(),
+        });
+        updatedCount++;
+      }
+    }
+
+    return { updatedCount };
+  },
+});
+
+// Public mutation to manually trigger overdue check (can be called from UI)
+export const refreshOverdueStatus = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const today = new Date().toISOString().split("T")[0];
+
+    const draftInvoices = await ctx.db
+      .query("invoices")
+      .withIndex("by_status", (q) => q.eq("status", "draft"))
+      .collect();
+
+    const sentInvoices = await ctx.db
+      .query("invoices")
+      .withIndex("by_status", (q) => q.eq("status", "sent"))
+      .collect();
+
+    const potentiallyOverdue = [...draftInvoices, ...sentInvoices];
+    let updatedCount = 0;
+
+    for (const invoice of potentiallyOverdue) {
+      if (invoice.dueDate < today) {
+        await ctx.db.patch(invoice._id, {
+          status: "overdue",
+          updatedAt: Date.now(),
+        });
+        updatedCount++;
+      }
+    }
+
+    return { updatedCount };
   },
 });

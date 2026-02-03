@@ -15,11 +15,15 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CompanyInfoFields } from "./CompanyInfoFields"
+import { PayerSelector } from "./PayerSelector"
 import type { ReceiptFormData, CompanyInfo, PaymentMethod } from "@/lib/types"
 import { formatCurrency, getTodayDate, numberToWords } from "@/lib/utils"
 import { IconDeviceFloppy, IconEye } from "@tabler/icons-react"
+import type { Id } from "../../../convex/_generated/dataModel"
+import { toast } from "sonner"
 
 interface ReceiptFormProps {
+  editId?: string
   onPreview?: (data: ReceiptFormData) => void
   onSaved?: () => void
 }
@@ -33,12 +37,22 @@ const defaultCompany: CompanyInfo = {
   taxId: "",
 }
 
-export function ReceiptForm({ onPreview, onSaved }: ReceiptFormProps) {
+export function ReceiptForm({ editId, onPreview, onSaved }: ReceiptFormProps) {
+  const isEditMode = !!editId
+
   const nextNumber = useQuery(api.documentNumbers.getNextNumber, { type: "receipt" })
   const companySettings = useQuery(api.companySettings.get)
+  const existingReceipt = useQuery(
+    api.receipts.get,
+    editId ? { id: editId as Id<"receipts"> } : "skip"
+  )
+
   const createReceipt = useMutation(api.receipts.create)
+  const updateReceipt = useMutation(api.receipts.update)
+  const createCustomer = useMutation(api.customers.create)
   const incrementCounter = useMutation(api.documentNumbers.incrementCounter)
 
+  const [saveNewPayer, setSaveNewPayer] = useState(false)
   const [formData, setFormData] = useState<ReceiptFormData>({
     receiptNumber: "",
     date: getTodayDate(),
@@ -52,17 +66,36 @@ export function ReceiptForm({ onPreview, onSaved }: ReceiptFormProps) {
   })
 
   const [isSaving, setIsSaving] = useState(false)
+  const [isLoaded, setIsLoaded] = useState(!isEditMode)
 
-  // Set receipt number from counter
+  // Load existing receipt data for edit mode
   useEffect(() => {
-    if (nextNumber?.number) {
+    if (isEditMode && existingReceipt) {
+      setFormData({
+        receiptNumber: existingReceipt.receiptNumber,
+        date: existingReceipt.date,
+        company: existingReceipt.company,
+        receivedFrom: existingReceipt.receivedFrom,
+        amount: existingReceipt.amount,
+        amountInWords: existingReceipt.amountInWords,
+        paymentMethod: existingReceipt.paymentMethod,
+        paymentFor: existingReceipt.paymentFor,
+        notes: existingReceipt.notes,
+      })
+      setIsLoaded(true)
+    }
+  }, [isEditMode, existingReceipt])
+
+  // Set receipt number from counter (only for create mode)
+  useEffect(() => {
+    if (!isEditMode && nextNumber?.number) {
       setFormData((prev) => ({ ...prev, receiptNumber: nextNumber.number }))
     }
-  }, [nextNumber])
+  }, [isEditMode, nextNumber])
 
-  // Set company info from settings
+  // Set company info from settings (only for create mode)
   useEffect(() => {
-    if (companySettings) {
+    if (!isEditMode && companySettings) {
       setFormData((prev) => ({
         ...prev,
         company: {
@@ -75,7 +108,7 @@ export function ReceiptForm({ onPreview, onSaved }: ReceiptFormProps) {
         },
       }))
     }
-  }, [companySettings])
+  }, [isEditMode, companySettings])
 
   // Update amount in words when amount changes
   useEffect(() => {
@@ -92,11 +125,29 @@ export function ReceiptForm({ onPreview, onSaved }: ReceiptFormProps) {
     setIsSaving(true)
 
     try {
-      await createReceipt(formData)
-      await incrementCounter({ type: "receipt" })
+      // Save new payer if checkbox is checked
+      if (saveNewPayer && formData.receivedFrom) {
+        await createCustomer({
+          name: formData.receivedFrom,
+          address: "",
+        })
+      }
+
+      if (isEditMode && editId) {
+        await updateReceipt({
+          id: editId as Id<"receipts">,
+          ...formData,
+        })
+        toast.success("Kwitansi berhasil diperbarui")
+      } else {
+        await createReceipt(formData)
+        await incrementCounter({ type: "receipt" })
+        toast.success("Kwitansi berhasil disimpan")
+      }
       onSaved?.()
     } catch (error) {
       console.error("Failed to save receipt:", error)
+      toast.error(isEditMode ? "Gagal memperbarui kwitansi" : "Gagal menyimpan kwitansi")
     } finally {
       setIsSaving(false)
     }
@@ -110,11 +161,19 @@ export function ReceiptForm({ onPreview, onSaved }: ReceiptFormProps) {
     setFormData((prev) => ({ ...prev, company }))
   }
 
+  if (isEditMode && !isLoaded) {
+    return (
+      <Card className="p-12 text-center">
+        <p className="text-muted-foreground">Memuat data kwitansi...</p>
+      </Card>
+    )
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Buat Kwitansi Baru</CardTitle>
+          <CardTitle>{isEditMode ? "Edit Kwitansi" : "Buat Kwitansi Baru"}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Document Info */}
@@ -128,6 +187,7 @@ export function ReceiptForm({ onPreview, onSaved }: ReceiptFormProps) {
                   setFormData((prev) => ({ ...prev, receiptNumber: e.target.value }))
                 }
                 placeholder="KWT-2024-0001"
+                disabled={isEditMode}
               />
             </div>
             <div className="space-y-2">
@@ -156,16 +216,14 @@ export function ReceiptForm({ onPreview, onSaved }: ReceiptFormProps) {
           <div className="space-y-4">
             <h3 className="font-semibold text-base">Informasi Pembayaran</h3>
 
-            <div className="space-y-2">
-              <Label htmlFor="receivedFrom">Diterima Dari *</Label>
-              <Input
-                id="receivedFrom"
-                placeholder="Nama pembayar"
-                value={formData.receivedFrom}
-                onChange={(e) => setFormData((prev) => ({ ...prev, receivedFrom: e.target.value }))}
-                required
-              />
-            </div>
+            <PayerSelector
+              value={formData.receivedFrom}
+              onChange={(name) => setFormData((prev) => ({ ...prev, receivedFrom: name }))}
+              label="Diterima Dari"
+              placeholder="Pilih atau ketik nama pembayar..."
+              saveNewPayer={saveNewPayer}
+              onSaveNewPayerChange={setSaveNewPayer}
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -252,7 +310,7 @@ export function ReceiptForm({ onPreview, onSaved }: ReceiptFormProps) {
         </Button>
         <Button type="submit" disabled={isSaving}>
           <IconDeviceFloppy className="h-4 w-4 mr-2" />
-          {isSaving ? "Menyimpan..." : "Simpan Kwitansi"}
+          {isSaving ? "Menyimpan..." : isEditMode ? "Perbarui Kwitansi" : "Simpan Kwitansi"}
         </Button>
       </div>
     </form>

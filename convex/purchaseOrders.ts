@@ -154,3 +154,52 @@ export const updateStatus = mutation({
     });
   },
 });
+
+export const search = query({
+  args: {
+    searchTerm: v.optional(v.string()),
+    status: v.optional(
+      v.union(
+        v.literal("draft"),
+        v.literal("sent"),
+        v.literal("confirmed"),
+        v.literal("received"),
+        v.literal("cancelled")
+      )
+    ),
+    startDate: v.optional(v.string()),
+    endDate: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    let purchaseOrders;
+
+    if (args.status) {
+      purchaseOrders = await ctx.db
+        .query("purchaseOrders")
+        .withIndex("by_status", (q) => q.eq("status", args.status!))
+        .order("desc")
+        .collect();
+    } else {
+      purchaseOrders = await ctx.db.query("purchaseOrders").order("desc").collect();
+    }
+
+    if (args.searchTerm && args.searchTerm.trim()) {
+      const term = args.searchTerm.toLowerCase().trim();
+      purchaseOrders = purchaseOrders.filter(
+        (po) =>
+          po.poNumber.toLowerCase().includes(term) ||
+          po.vendor.name.toLowerCase().includes(term)
+      );
+    }
+
+    // Filter by date range
+    if (args.startDate) {
+      purchaseOrders = purchaseOrders.filter((po) => po.date >= args.startDate!);
+    }
+    if (args.endDate) {
+      purchaseOrders = purchaseOrders.filter((po) => po.date <= args.endDate!);
+    }
+
+    return purchaseOrders;
+  },
+});

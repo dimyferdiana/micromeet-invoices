@@ -9,12 +9,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { CompanyInfoFields } from "./CompanyInfoFields"
 import { CustomerInfoFields } from "./CustomerInfoFields"
+import { CustomerSelector } from "./CustomerSelector"
 import { LineItemsEditor } from "./LineItemsEditor"
 import type { POFormData, LineItem, CompanyInfo, CustomerInfo } from "@/lib/types"
 import { formatCurrency, getTodayDate } from "@/lib/utils"
 import { IconDeviceFloppy, IconEye } from "@tabler/icons-react"
+import type { Id } from "../../../convex/_generated/dataModel"
+import { toast } from "sonner"
 
 interface PurchaseOrderFormProps {
+  editId?: string
   onPreview?: (data: POFormData) => void
   onSaved?: () => void
 }
@@ -35,12 +39,22 @@ const defaultVendor: CustomerInfo = {
   email: "",
 }
 
-export function PurchaseOrderForm({ onPreview, onSaved }: PurchaseOrderFormProps) {
+export function PurchaseOrderForm({ editId, onPreview, onSaved }: PurchaseOrderFormProps) {
+  const isEditMode = !!editId
+
   const nextNumber = useQuery(api.documentNumbers.getNextNumber, { type: "purchaseOrder" })
   const companySettings = useQuery(api.companySettings.get)
+  const existingPO = useQuery(
+    api.purchaseOrders.get,
+    editId ? { id: editId as Id<"purchaseOrders"> } : "skip"
+  )
+
   const createPO = useMutation(api.purchaseOrders.create)
+  const updatePO = useMutation(api.purchaseOrders.update)
+  const createCustomer = useMutation(api.customers.create)
   const incrementCounter = useMutation(api.documentNumbers.incrementCounter)
 
+  const [saveNewVendor, setSaveNewVendor] = useState(false)
   const [formData, setFormData] = useState<POFormData>({
     poNumber: "",
     date: getTodayDate(),
@@ -59,17 +73,41 @@ export function PurchaseOrderForm({ onPreview, onSaved }: PurchaseOrderFormProps
   })
 
   const [isSaving, setIsSaving] = useState(false)
+  const [isLoaded, setIsLoaded] = useState(!isEditMode)
 
-  // Set PO number from counter
+  // Load existing PO data for edit mode
   useEffect(() => {
-    if (nextNumber?.number) {
+    if (isEditMode && existingPO) {
+      setFormData({
+        poNumber: existingPO.poNumber,
+        date: existingPO.date,
+        expectedDeliveryDate: existingPO.expectedDeliveryDate,
+        company: existingPO.company,
+        vendor: existingPO.vendor,
+        items: existingPO.items,
+        subtotal: existingPO.subtotal,
+        taxRate: existingPO.taxRate,
+        taxAmount: existingPO.taxAmount,
+        total: existingPO.total,
+        shippingAddress: existingPO.shippingAddress,
+        notes: existingPO.notes,
+        terms: existingPO.terms,
+        status: existingPO.status,
+      })
+      setIsLoaded(true)
+    }
+  }, [isEditMode, existingPO])
+
+  // Set PO number from counter (only for create mode)
+  useEffect(() => {
+    if (!isEditMode && nextNumber?.number) {
       setFormData((prev) => ({ ...prev, poNumber: nextNumber.number }))
     }
-  }, [nextNumber])
+  }, [isEditMode, nextNumber])
 
-  // Set company info from settings
+  // Set company info from settings (only for create mode)
   useEffect(() => {
-    if (companySettings) {
+    if (!isEditMode && companySettings) {
       setFormData((prev) => ({
         ...prev,
         company: {
@@ -83,7 +121,7 @@ export function PurchaseOrderForm({ onPreview, onSaved }: PurchaseOrderFormProps
         shippingAddress: companySettings.address,
       }))
     }
-  }, [companySettings])
+  }, [isEditMode, companySettings])
 
   // Calculate totals when items or tax rate changes
   useEffect(() => {
@@ -104,11 +142,31 @@ export function PurchaseOrderForm({ onPreview, onSaved }: PurchaseOrderFormProps
     setIsSaving(true)
 
     try {
-      await createPO(formData)
-      await incrementCounter({ type: "purchaseOrder" })
+      // Save new vendor if checkbox is checked
+      if (saveNewVendor && formData.vendor.name) {
+        await createCustomer({
+          name: formData.vendor.name,
+          address: formData.vendor.address,
+          phone: formData.vendor.phone || undefined,
+          email: formData.vendor.email || undefined,
+        })
+      }
+
+      if (isEditMode && editId) {
+        await updatePO({
+          id: editId as Id<"purchaseOrders">,
+          ...formData,
+        })
+        toast.success("Purchase Order berhasil diperbarui")
+      } else {
+        await createPO(formData)
+        await incrementCounter({ type: "purchaseOrder" })
+        toast.success("Purchase Order berhasil disimpan")
+      }
       onSaved?.()
     } catch (error) {
       console.error("Failed to save purchase order:", error)
+      toast.error(isEditMode ? "Gagal memperbarui PO" : "Gagal menyimpan PO")
     } finally {
       setIsSaving(false)
     }
@@ -130,11 +188,19 @@ export function PurchaseOrderForm({ onPreview, onSaved }: PurchaseOrderFormProps
     setFormData((prev) => ({ ...prev, vendor }))
   }
 
+  if (isEditMode && !isLoaded) {
+    return (
+      <Card className="p-12 text-center">
+        <p className="text-muted-foreground">Memuat data Purchase Order...</p>
+      </Card>
+    )
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Buat Purchase Order Baru</CardTitle>
+          <CardTitle>{isEditMode ? "Edit Purchase Order" : "Buat Purchase Order Baru"}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Document Info */}
@@ -146,6 +212,7 @@ export function PurchaseOrderForm({ onPreview, onSaved }: PurchaseOrderFormProps
                 value={formData.poNumber}
                 onChange={(e) => setFormData((prev) => ({ ...prev, poNumber: e.target.value }))}
                 placeholder="PO-2024-0001"
+                disabled={isEditMode}
               />
             </div>
             <div className="space-y-2">
@@ -179,11 +246,21 @@ export function PurchaseOrderForm({ onPreview, onSaved }: PurchaseOrderFormProps
               onChange={updateCompany}
               title="Dari (Pembeli)"
             />
-            <CustomerInfoFields
-              customer={formData.vendor}
-              onChange={updateVendor}
-              title="Kepada (Vendor)"
-            />
+            <div className="space-y-4">
+              <CustomerSelector
+                value={formData.vendor}
+                onChange={updateVendor}
+                label="Kepada (Vendor)"
+                placeholder="Pilih vendor tersimpan..."
+                saveNewCustomer={saveNewVendor}
+                onSaveNewCustomerChange={setSaveNewVendor}
+              />
+              <CustomerInfoFields
+                customer={formData.vendor}
+                onChange={updateVendor}
+                title="Detail Vendor"
+              />
+            </div>
           </div>
 
           <Separator />
@@ -271,7 +348,7 @@ export function PurchaseOrderForm({ onPreview, onSaved }: PurchaseOrderFormProps
         </Button>
         <Button type="submit" disabled={isSaving}>
           <IconDeviceFloppy className="h-4 w-4 mr-2" />
-          {isSaving ? "Menyimpan..." : "Simpan PO"}
+          {isSaving ? "Menyimpan..." : isEditMode ? "Perbarui PO" : "Simpan PO"}
         </Button>
       </div>
     </form>

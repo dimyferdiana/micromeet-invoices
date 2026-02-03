@@ -127,3 +127,57 @@
     @apply font-sans;
     }
 }
+
+/* Print styles */
+@media print {
+  /* Hide non-printable elements */
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Reset background and text colors for printing */
+  body {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ensure the preview fills the page */
+  #invoice-preview,
+  #po-preview,
+  #receipt-preview {
+    box-shadow: none !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 20mm !important;
+  }
+
+  /* Hide sidebar and other UI elements */
+  aside,
+  nav,
+  header:not(#invoice-preview header):not(#po-preview header):not(#receipt-preview header) {
+    display: none !important;
+  }
+
+  /* Page setup */
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  /* Ensure table borders print correctly */
+  table {
+    border-collapse: collapse;
+  }
+
+  th, td {
+    border-color: #000 !important;
+  }
+
+  /* Ensure badges print with colors */
+  .bg-gray-100, .bg-blue-100, .bg-green-100, .bg-red-100, .bg-purple-100 {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

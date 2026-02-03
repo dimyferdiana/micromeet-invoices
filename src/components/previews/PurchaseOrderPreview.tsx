@@ -1,3 +1,5 @@
+import { useQuery } from "convex/react"
+import { api } from "../../../convex/_generated/api"
 import type { POFormData } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -8,13 +10,24 @@ interface PurchaseOrderPreviewProps {
 }
 
 export function PurchaseOrderPreview({ data }: PurchaseOrderPreviewProps) {
+  const companySettings = useQuery(api.companySettings.getWithUrls)
+
   return (
     <div className="bg-white p-8 shadow-lg max-w-4xl mx-auto" id="po-preview">
       {/* Header */}
       <div className="flex justify-between items-start mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-primary mb-2">PURCHASE ORDER</h1>
-          <p className="text-lg font-semibold">{data.poNumber}</p>
+        <div className="flex items-start gap-4">
+          {companySettings?.logoUrl && (
+            <img
+              src={companySettings.logoUrl}
+              alt="Company Logo"
+              className="max-h-16 max-w-32 object-contain"
+            />
+          )}
+          <div>
+            <h1 className="text-3xl font-bold text-primary mb-2">PURCHASE ORDER</h1>
+            <p className="text-lg font-semibold">{data.poNumber}</p>
+          </div>
         </div>
         <Badge className={statusColors[data.status]}>{statusLabels[data.status]}</Badge>
       </div>
@@ -117,7 +130,7 @@ export function PurchaseOrderPreview({ data }: PurchaseOrderPreviewProps) {
 
       {/* Notes */}
       {data.notes && (
-        <div className="border-t pt-6">
+        <div className="border-t pt-6 mb-8">
           <h3 className="text-sm font-semibold text-muted-foreground mb-2">CATATAN</h3>
           <p className="text-muted-foreground whitespace-pre-line">{data.notes}</p>
         </div>
@@ -126,12 +139,27 @@ export function PurchaseOrderPreview({ data }: PurchaseOrderPreviewProps) {
       {/* Signature Section */}
       <div className="mt-12 grid grid-cols-2 gap-8">
         <div className="text-center">
-          <div className="border-b-2 border-dashed h-20 mb-2"></div>
+          <div className="relative min-h-24 flex items-center justify-center border-b-2 border-dashed mb-2">
+            {companySettings?.stampUrl && (
+              <img
+                src={companySettings.stampUrl}
+                alt="Company Stamp"
+                className="absolute max-h-20 max-w-28 object-contain opacity-80"
+              />
+            )}
+            {companySettings?.signatureUrl && (
+              <img
+                src={companySettings.signatureUrl}
+                alt="Signature"
+                className="relative max-h-16 max-w-24 object-contain z-10"
+              />
+            )}
+          </div>
           <p className="font-medium">Disetujui Oleh</p>
           <p className="text-sm text-muted-foreground">(Pembeli)</p>
         </div>
         <div className="text-center">
-          <div className="border-b-2 border-dashed h-20 mb-2"></div>
+          <div className="border-b-2 border-dashed h-24 mb-2"></div>
           <p className="font-medium">Diterima Oleh</p>
           <p className="text-sm text-muted-foreground">(Vendor)</p>
         </div>

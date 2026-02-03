@@ -1,12 +1,21 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "../../convex/_generated/api"
 import { Header } from "@/components/layout/Header"
 import { InvoiceForm } from "@/components/forms/InvoiceForm"
 import { InvoicePreview } from "@/components/previews/InvoicePreview"
+import { StatusDropdown } from "@/components/forms/StatusDropdown"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
+import { SearchInput } from "@/components/ui/search-input"
+import { DateRangeFilter } from "@/components/ui/date-range-filter"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,20 +26,36 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import type { InvoiceFormData } from "@/lib/types"
-import { statusColors, statusLabels } from "@/lib/types"
+import type { InvoiceFormData, InvoiceStatus } from "@/lib/types"
+import { statusLabels } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import { IconArrowLeft, IconPrinter, IconEye, IconTrash } from "@tabler/icons-react"
+import { IconArrowLeft, IconPrinter, IconEye, IconTrash, IconEdit } from "@tabler/icons-react"
 import type { Id } from "../../convex/_generated/dataModel"
+import { toast } from "sonner"
+import { useDebounce } from "@/hooks/useDebounce"
 
-type ViewMode = "list" | "create" | "preview"
+type ViewMode = "list" | "create" | "edit" | "preview"
 
 export function InvoicesPage() {
-  const invoices = useQuery(api.invoices.list, {})
+  const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState<InvoiceStatus | "all">("all")
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
+  const debouncedSearch = useDebounce(searchTerm, 300)
+
+  const searchArgs = useMemo(() => ({
+    searchTerm: debouncedSearch || undefined,
+    status: statusFilter === "all" ? undefined : statusFilter,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+  }), [debouncedSearch, statusFilter, startDate, endDate])
+
+  const invoices = useQuery(api.invoices.search, searchArgs)
   const deleteInvoice = useMutation(api.invoices.remove)
 
   const [viewMode, setViewMode] = useState<ViewMode>("list")
   const [previewData, setPreviewData] = useState<InvoiceFormData | null>(null)
+  const [editId, setEditId] = useState<string | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   const handlePreview = (data: InvoiceFormData) => {
@@ -40,11 +65,23 @@ export function InvoicesPage() {
 
   const handleSaved = () => {
     setViewMode("list")
+    setEditId(null)
+  }
+
+  const handleEdit = (invoiceId: string) => {
+    setEditId(invoiceId)
+    setViewMode("edit")
   }
 
   const handleDelete = async () => {
     if (deleteId) {
-      await deleteInvoice({ id: deleteId as Id<"invoices"> })
+      try {
+        await deleteInvoice({ id: deleteId as Id<"invoices"> })
+        toast.success("Invoice berhasil dihapus")
+      } catch (error) {
+        toast.error("Gagal menghapus invoice")
+        console.error("Failed to delete invoice:", error)
+      }
       setDeleteId(null)
     }
   }
@@ -65,17 +102,29 @@ export function InvoicesPage() {
     )
   }
 
+  if (viewMode === "edit" && editId) {
+    return (
+      <div className="space-y-6">
+        <Button variant="ghost" onClick={() => { setViewMode("list"); setEditId(null); }} className="mb-4">
+          <IconArrowLeft className="h-4 w-4 mr-2" />
+          Kembali ke Daftar
+        </Button>
+        <InvoiceForm editId={editId} onPreview={handlePreview} onSaved={handleSaved} />
+      </div>
+    )
+  }
+
   if (viewMode === "preview" && previewData) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center print:hidden">
-          <Button variant="ghost" onClick={() => setViewMode("create")}>
+          <Button variant="ghost" onClick={() => setViewMode(editId ? "edit" : "create")}>
             <IconArrowLeft className="h-4 w-4 mr-2" />
             Kembali ke Form
           </Button>
           <Button onClick={handlePrint}>
             <IconPrinter className="h-4 w-4 mr-2" />
-            Cetak
+            Print / Download
           </Button>
         </div>
         <InvoicePreview data={previewData} />
@@ -92,10 +141,45 @@ export function InvoicesPage() {
         createLabel="Buat Invoice"
       />
 
+      {/* Search and Filter */}
+      <div className="flex flex-wrap gap-4 mb-6">
+        <SearchInput
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder="Cari nomor invoice atau pelanggan..."
+          className="flex-1 min-w-50"
+        />
+        <Select
+          value={statusFilter}
+          onValueChange={(value) => setStatusFilter(value as InvoiceStatus | "all")}
+        >
+          <SelectTrigger className="w-45">
+            <SelectValue placeholder="Filter status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Status</SelectItem>
+            <SelectItem value="draft">{statusLabels.draft}</SelectItem>
+            <SelectItem value="sent">{statusLabels.sent}</SelectItem>
+            <SelectItem value="paid">{statusLabels.paid}</SelectItem>
+            <SelectItem value="overdue">{statusLabels.overdue}</SelectItem>
+            <SelectItem value="cancelled">{statusLabels.cancelled}</SelectItem>
+          </SelectContent>
+        </Select>
+        <DateRangeFilter
+          startDate={startDate}
+          endDate={endDate}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
+          className="w-auto"
+        />
+      </div>
+
       {!invoices || invoices.length === 0 ? (
         <Card className="p-12 text-center">
           <p className="text-muted-foreground">
-            Belum ada invoice. Buat invoice pertama Anda!
+            {searchTerm || statusFilter !== "all"
+              ? "Tidak ada invoice yang cocok dengan pencarian."
+              : "Belum ada invoice. Buat invoice pertama Anda!"}
           </p>
         </Card>
       ) : (
@@ -106,9 +190,12 @@ export function InvoicesPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3">
                     <span className="font-semibold">{invoice.invoiceNumber}</span>
-                    <Badge className={statusColors[invoice.status]}>
-                      {statusLabels[invoice.status]}
-                    </Badge>
+                    <StatusDropdown
+                      documentType="invoice"
+                      documentId={invoice._id}
+                      currentStatus={invoice.status}
+                      disabled={invoice.status === "paid"}
+                    />
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
                     {invoice.customer.name} • {formatDate(invoice.date)}
@@ -121,6 +208,15 @@ export function InvoicesPage() {
                   </span>
 
                   <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(invoice._id)}
+                      disabled={invoice.status === "paid"}
+                      title={invoice.status === "paid" ? "Invoice lunas tidak dapat diedit" : "Edit invoice"}
+                    >
+                      <IconEdit className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"

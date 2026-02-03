@@ -1,3 +1,5 @@
+import { useQuery } from "convex/react"
+import { api } from "../../../convex/_generated/api"
 import type { ReceiptFormData } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { paymentMethodLabels } from "@/lib/types"
@@ -7,10 +9,19 @@ interface ReceiptPreviewProps {
 }
 
 export function ReceiptPreview({ data }: ReceiptPreviewProps) {
+  const companySettings = useQuery(api.companySettings.getWithUrls)
+
   return (
     <div className="bg-white p-8 shadow-lg max-w-2xl mx-auto" id="receipt-preview">
       {/* Header */}
       <div className="text-center mb-8 border-b pb-6">
+        {companySettings?.logoUrl && (
+          <img
+            src={companySettings.logoUrl}
+            alt="Company Logo"
+            className="max-h-16 max-w-32 object-contain mx-auto mb-4"
+          />
+        )}
         <h1 className="text-3xl font-bold text-primary mb-2">KWITANSI</h1>
         <p className="text-lg font-semibold">{data.receiptNumber}</p>
       </div>
@@ -71,11 +82,29 @@ export function ReceiptPreview({ data }: ReceiptPreviewProps) {
       {/* Signature Section */}
       <div className="mt-12 flex justify-end">
         <div className="text-center w-48">
-          <p className="text-sm text-muted-foreground mb-16">
+          <p className="text-sm text-muted-foreground mb-4">
             {data.company.address?.split(",")[0] || ""},<br />
             {formatDate(data.date)}
           </p>
-          <div className="border-b-2 border-dashed mb-2"></div>
+          <div className="relative min-h-20 flex items-center justify-center mb-2">
+            {companySettings?.stampUrl && (
+              <img
+                src={companySettings.stampUrl}
+                alt="Company Stamp"
+                className="absolute max-h-20 max-w-28 object-contain opacity-80"
+              />
+            )}
+            {companySettings?.signatureUrl && (
+              <img
+                src={companySettings.signatureUrl}
+                alt="Signature"
+                className="relative max-h-14 max-w-24 object-contain z-10"
+              />
+            )}
+          </div>
+          {!(companySettings?.signatureUrl || companySettings?.stampUrl) && (
+            <div className="border-b-2 border-dashed h-16 mb-2"></div>
+          )}
           <p className="font-medium">Penerima</p>
         </div>
       </div>

@@ -113,3 +113,30 @@ export const paymentMethodLabels: Record<PaymentMethod, string> = {
   check: "Cek/Giro",
   other: "Lainnya",
 }
+
+// Bank account information
+export interface BankAccount {
+  _id: string
+  bankName: string
+  accountNumber: string
+  accountHolder: string
+  branch?: string
+  swiftCode?: string
+  isDefault: boolean
+  createdAt: number
+}
+
+// Company settings with branding
+export interface CompanySettings {
+  _id: string
+  name: string
+  address: string
+  phone?: string
+  email?: string
+  website?: string
+  taxId?: string
+  logo?: string
+  logoFileId?: string
+  signatureFileId?: string
+  stampFileId?: string
+}

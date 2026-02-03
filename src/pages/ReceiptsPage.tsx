@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "../../convex/_generated/api"
 import { Header } from "@/components/layout/Header"
@@ -6,6 +6,8 @@ import { ReceiptForm } from "@/components/forms/ReceiptForm"
 import { ReceiptPreview } from "@/components/previews/ReceiptPreview"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { SearchInput } from "@/components/ui/search-input"
+import { DateRangeFilter } from "@/components/ui/date-range-filter"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,17 +20,31 @@ import {
 } from "@/components/ui/alert-dialog"
 import type { ReceiptFormData } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import { IconArrowLeft, IconPrinter, IconEye, IconTrash } from "@tabler/icons-react"
+import { IconArrowLeft, IconPrinter, IconEye, IconTrash, IconEdit } from "@tabler/icons-react"
 import type { Id } from "../../convex/_generated/dataModel"
+import { toast } from "sonner"
+import { useDebounce } from "@/hooks/useDebounce"
 
-type ViewMode = "list" | "create" | "preview"
+type ViewMode = "list" | "create" | "edit" | "preview"
 
 export function ReceiptsPage() {
-  const receipts = useQuery(api.receipts.list)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
+  const debouncedSearch = useDebounce(searchTerm, 300)
+
+  const searchArgs = useMemo(() => ({
+    searchTerm: debouncedSearch || undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+  }), [debouncedSearch, startDate, endDate])
+
+  const receipts = useQuery(api.receipts.search, searchArgs)
   const deleteReceipt = useMutation(api.receipts.remove)
 
   const [viewMode, setViewMode] = useState<ViewMode>("list")
   const [previewData, setPreviewData] = useState<ReceiptFormData | null>(null)
+  const [editId, setEditId] = useState<string | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   const handlePreview = (data: ReceiptFormData) => {
@@ -38,11 +54,23 @@ export function ReceiptsPage() {
 
   const handleSaved = () => {
     setViewMode("list")
+    setEditId(null)
+  }
+
+  const handleEdit = (receiptId: string) => {
+    setEditId(receiptId)
+    setViewMode("edit")
   }
 
   const handleDelete = async () => {
     if (deleteId) {
-      await deleteReceipt({ id: deleteId as Id<"receipts"> })
+      try {
+        await deleteReceipt({ id: deleteId as Id<"receipts"> })
+        toast.success("Kwitansi berhasil dihapus")
+      } catch (error) {
+        toast.error("Gagal menghapus kwitansi")
+        console.error("Failed to delete receipt:", error)
+      }
       setDeleteId(null)
     }
   }
@@ -63,17 +91,29 @@ export function ReceiptsPage() {
     )
   }
 
+  if (viewMode === "edit" && editId) {
+    return (
+      <div className="space-y-6">
+        <Button variant="ghost" onClick={() => { setViewMode("list"); setEditId(null); }} className="mb-4">
+          <IconArrowLeft className="h-4 w-4 mr-2" />
+          Kembali ke Daftar
+        </Button>
+        <ReceiptForm editId={editId} onPreview={handlePreview} onSaved={handleSaved} />
+      </div>
+    )
+  }
+
   if (viewMode === "preview" && previewData) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center print:hidden">
-          <Button variant="ghost" onClick={() => setViewMode("create")}>
+          <Button variant="ghost" onClick={() => setViewMode(editId ? "edit" : "create")}>
             <IconArrowLeft className="h-4 w-4 mr-2" />
             Kembali ke Form
           </Button>
           <Button onClick={handlePrint}>
             <IconPrinter className="h-4 w-4 mr-2" />
-            Cetak
+            Print / Download
           </Button>
         </div>
         <ReceiptPreview data={previewData} />
@@ -90,10 +130,29 @@ export function ReceiptsPage() {
         createLabel="Buat Kwitansi"
       />
 
+      {/* Search and Filter */}
+      <div className="flex flex-wrap gap-4 mb-6">
+        <SearchInput
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder="Cari nomor kwitansi, pembayar, atau keperluan..."
+          className="flex-1 min-w-50"
+        />
+        <DateRangeFilter
+          startDate={startDate}
+          endDate={endDate}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
+          className="w-auto"
+        />
+      </div>
+
       {!receipts || receipts.length === 0 ? (
         <Card className="p-12 text-center">
           <p className="text-muted-foreground">
-            Belum ada kwitansi. Buat kwitansi pertama Anda!
+            {searchTerm
+              ? "Tidak ada kwitansi yang cocok dengan pencarian."
+              : "Belum ada kwitansi. Buat kwitansi pertama Anda!"}
           </p>
         </Card>
       ) : (
@@ -114,6 +173,14 @@ export function ReceiptsPage() {
                   </span>
 
                   <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(receipt._id)}
+                      title="Edit kwitansi"
+                    >
+                      <IconEdit className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"

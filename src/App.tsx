@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { Sidebar, type ActiveView } from "@/components/layout/Sidebar"
+import { Toaster } from "@/components/ui/sonner"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { InvoicesPage } from "@/pages/InvoicesPage"
 import { PurchaseOrdersPage } from "@/pages/PurchaseOrdersPage"
@@ -40,6 +41,8 @@ export function App() {
       <main className="flex-1 overflow-auto">
         <div className="p-8">{renderContent()}</div>
       </main>
+
+      <Toaster position="top-right" richColors />
     </div>
   )
 }
