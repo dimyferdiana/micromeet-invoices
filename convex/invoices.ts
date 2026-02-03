@@ -36,16 +36,24 @@ export const list = query({
         v.literal("cancelled")
       )
     ),
+    includeDeleted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    let invoices;
     if (args.status) {
-      return await ctx.db
+      invoices = await ctx.db
         .query("invoices")
         .withIndex("by_status", (q) => q.eq("status", args.status!))
         .order("desc")
         .collect();
+    } else {
+      invoices = await ctx.db.query("invoices").order("desc").collect();
     }
-    return await ctx.db.query("invoices").order("desc").collect();
+    // Filter out soft-deleted documents unless includeDeleted is true
+    if (!args.includeDeleted) {
+      invoices = invoices.filter((inv) => !inv.deletedAt);
+    }
+    return invoices;
   },
 });
 
@@ -125,10 +133,57 @@ export const update = mutation({
   },
 });
 
+// Soft delete - sets deletedAt timestamp instead of removing
 export const remove = mutation({
   args: { id: v.id("invoices") },
   handler: async (ctx, args) => {
+    const existing = await ctx.db.get(args.id);
+    if (!existing) {
+      throw new Error("Invoice not found");
+    }
+    await ctx.db.patch(args.id, {
+      deletedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+// Restore a soft-deleted invoice
+export const restore = mutation({
+  args: { id: v.id("invoices") },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db.get(args.id);
+    if (!existing) {
+      throw new Error("Invoice not found");
+    }
+    if (!existing.deletedAt) {
+      throw new Error("Invoice is not deleted");
+    }
+    await ctx.db.patch(args.id, {
+      deletedAt: undefined,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+// Permanently delete an invoice (hard delete)
+export const permanentDelete = mutation({
+  args: { id: v.id("invoices") },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db.get(args.id);
+    if (!existing) {
+      throw new Error("Invoice not found");
+    }
     await ctx.db.delete(args.id);
+  },
+});
+
+// List deleted invoices
+export const listDeleted = query({
+  args: {},
+  handler: async (ctx) => {
+    const invoices = await ctx.db.query("invoices").order("desc").collect();
+    return invoices.filter((inv) => inv.deletedAt);
   },
 });
 
@@ -178,6 +233,9 @@ export const search = query({
     } else {
       invoices = await ctx.db.query("invoices").order("desc").collect();
     }
+
+    // Filter out soft-deleted documents
+    invoices = invoices.filter((inv) => !inv.deletedAt);
 
     if (args.searchTerm && args.searchTerm.trim()) {
       const term = args.searchTerm.toLowerCase().trim();

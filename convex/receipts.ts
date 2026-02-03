@@ -12,9 +12,16 @@ const companyInfoValidator = v.object({
 });
 
 export const list = query({
-  args: {},
-  handler: async (ctx) => {
-    return await ctx.db.query("receipts").order("desc").collect();
+  args: {
+    includeDeleted: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    let receipts = await ctx.db.query("receipts").order("desc").collect();
+    // Filter out soft-deleted documents unless includeDeleted is true
+    if (!args.includeDeleted) {
+      receipts = receipts.filter((r) => !r.deletedAt);
+    }
+    return receipts;
   },
 });
 
@@ -86,10 +93,57 @@ export const update = mutation({
   },
 });
 
+// Soft delete - sets deletedAt timestamp instead of removing
 export const remove = mutation({
   args: { id: v.id("receipts") },
   handler: async (ctx, args) => {
+    const existing = await ctx.db.get(args.id);
+    if (!existing) {
+      throw new Error("Receipt not found");
+    }
+    await ctx.db.patch(args.id, {
+      deletedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+// Restore a soft-deleted receipt
+export const restore = mutation({
+  args: { id: v.id("receipts") },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db.get(args.id);
+    if (!existing) {
+      throw new Error("Receipt not found");
+    }
+    if (!existing.deletedAt) {
+      throw new Error("Receipt is not deleted");
+    }
+    await ctx.db.patch(args.id, {
+      deletedAt: undefined,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+// Permanently delete a receipt (hard delete)
+export const permanentDelete = mutation({
+  args: { id: v.id("receipts") },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db.get(args.id);
+    if (!existing) {
+      throw new Error("Receipt not found");
+    }
     await ctx.db.delete(args.id);
+  },
+});
+
+// List deleted receipts
+export const listDeleted = query({
+  args: {},
+  handler: async (ctx) => {
+    const receipts = await ctx.db.query("receipts").order("desc").collect();
+    return receipts.filter((r) => r.deletedAt);
   },
 });
 
@@ -101,6 +155,9 @@ export const search = query({
   },
   handler: async (ctx, args) => {
     let receipts = await ctx.db.query("receipts").order("desc").collect();
+
+    // Filter out soft-deleted documents
+    receipts = receipts.filter((r) => !r.deletedAt);
 
     if (args.searchTerm && args.searchTerm.trim()) {
       const term = args.searchTerm.toLowerCase().trim();

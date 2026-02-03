@@ -36,16 +36,24 @@ export const list = query({
         v.literal("cancelled")
       )
     ),
+    includeDeleted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    let purchaseOrders;
     if (args.status) {
-      return await ctx.db
+      purchaseOrders = await ctx.db
         .query("purchaseOrders")
         .withIndex("by_status", (q) => q.eq("status", args.status!))
         .order("desc")
         .collect();
+    } else {
+      purchaseOrders = await ctx.db.query("purchaseOrders").order("desc").collect();
     }
-    return await ctx.db.query("purchaseOrders").order("desc").collect();
+    // Filter out soft-deleted documents unless includeDeleted is true
+    if (!args.includeDeleted) {
+      purchaseOrders = purchaseOrders.filter((po) => !po.deletedAt);
+    }
+    return purchaseOrders;
   },
 });
 
@@ -129,10 +137,57 @@ export const update = mutation({
   },
 });
 
+// Soft delete - sets deletedAt timestamp instead of removing
 export const remove = mutation({
   args: { id: v.id("purchaseOrders") },
   handler: async (ctx, args) => {
+    const existing = await ctx.db.get(args.id);
+    if (!existing) {
+      throw new Error("Purchase Order not found");
+    }
+    await ctx.db.patch(args.id, {
+      deletedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+// Restore a soft-deleted purchase order
+export const restore = mutation({
+  args: { id: v.id("purchaseOrders") },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db.get(args.id);
+    if (!existing) {
+      throw new Error("Purchase Order not found");
+    }
+    if (!existing.deletedAt) {
+      throw new Error("Purchase Order is not deleted");
+    }
+    await ctx.db.patch(args.id, {
+      deletedAt: undefined,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+// Permanently delete a purchase order (hard delete)
+export const permanentDelete = mutation({
+  args: { id: v.id("purchaseOrders") },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db.get(args.id);
+    if (!existing) {
+      throw new Error("Purchase Order not found");
+    }
     await ctx.db.delete(args.id);
+  },
+});
+
+// List deleted purchase orders
+export const listDeleted = query({
+  args: {},
+  handler: async (ctx) => {
+    const purchaseOrders = await ctx.db.query("purchaseOrders").order("desc").collect();
+    return purchaseOrders.filter((po) => po.deletedAt);
   },
 });
 
@@ -182,6 +237,9 @@ export const search = query({
     } else {
       purchaseOrders = await ctx.db.query("purchaseOrders").order("desc").collect();
     }
+
+    // Filter out soft-deleted documents
+    purchaseOrders = purchaseOrders.filter((po) => !po.deletedAt);
 
     if (args.searchTerm && args.searchTerm.trim()) {
       const term = args.searchTerm.toLowerCase().trim();

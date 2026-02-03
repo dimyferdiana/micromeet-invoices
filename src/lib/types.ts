@@ -139,4 +139,52 @@ export interface CompanySettings {
   logoFileId?: string
   signatureFileId?: string
   stampFileId?: string
+  // Watermark settings
+  watermarkEnabled?: boolean
+  watermarkText?: string
+  watermarkOpacity?: number
+}
+
+// Email settings (SMTP configuration)
+export interface EmailSettings {
+  _id: string
+  smtpHost: string
+  smtpPort: number
+  smtpSecure: boolean
+  smtpUser: string
+  smtpPassword: string // Masked in UI
+  senderName: string
+  senderEmail: string
+  replyToEmail?: string
+  isConfigured: boolean
+  lastTestedAt?: number
+  testStatus?: "success" | "failed"
+}
+
+// Email log entry
+export interface EmailLog {
+  _id: string
+  documentType: DocumentType
+  documentId: string
+  documentNumber: string
+  recipientEmail: string
+  recipientName?: string
+  subject: string
+  status: "pending" | "sent" | "failed"
+  errorMessage?: string
+  sentAt: number
+}
+
+// Email status labels
+export const emailStatusLabels: Record<string, string> = {
+  pending: "Menunggu",
+  sent: "Terkirim",
+  failed: "Gagal",
+}
+
+// Email status colors
+export const emailStatusColors: Record<string, string> = {
+  pending: "bg-yellow-100 text-yellow-800",
+  sent: "bg-green-100 text-green-800",
+  failed: "bg-red-100 text-red-800",
 }

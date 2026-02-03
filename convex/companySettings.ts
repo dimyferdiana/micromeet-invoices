@@ -51,6 +51,10 @@ export const upsert = mutation({
     bankName: v.optional(v.string()),
     bankAccount: v.optional(v.string()),
     bankAccountName: v.optional(v.string()),
+    // Watermark settings
+    watermarkEnabled: v.optional(v.boolean()),
+    watermarkText: v.optional(v.string()),
+    watermarkOpacity: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db.query("companySettings").first();
@@ -61,5 +65,28 @@ export const upsert = mutation({
     } else {
       return await ctx.db.insert("companySettings", args);
     }
+  },
+});
+
+// Update watermark settings only
+export const updateWatermark = mutation({
+  args: {
+    enabled: v.boolean(),
+    text: v.optional(v.string()),
+    opacity: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db.query("companySettings").first();
+
+    if (!existing) {
+      throw new Error("Company settings not found. Please set up company info first.");
+    }
+
+    await ctx.db.patch(existing._id, {
+      watermarkEnabled: args.enabled,
+      watermarkText: args.text,
+      watermarkOpacity: args.opacity,
+    });
+    return existing._id;
   },
 });

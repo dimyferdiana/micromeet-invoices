@@ -55,6 +55,10 @@ export default defineSchema({
     bankName: v.optional(v.string()),
     bankAccount: v.optional(v.string()),
     bankAccountName: v.optional(v.string()),
+    // Watermark settings
+    watermarkEnabled: v.optional(v.boolean()),
+    watermarkText: v.optional(v.string()), // Custom text, defaults to company name
+    watermarkOpacity: v.optional(v.number()), // 0-100, defaults to 10
   }),
 
   // Bank accounts for multiple bank account support
@@ -90,10 +94,12 @@ export default defineSchema({
     ),
     createdAt: v.number(),
     updatedAt: v.number(),
+    deletedAt: v.optional(v.number()), // Soft delete timestamp
   })
     .index("by_number", ["invoiceNumber"])
     .index("by_status", ["status"])
-    .index("by_date", ["date"]),
+    .index("by_date", ["date"])
+    .index("by_deleted", ["deletedAt"]),
 
   // Purchase Orders table
   purchaseOrders: defineTable({
@@ -119,10 +125,12 @@ export default defineSchema({
     ),
     createdAt: v.number(),
     updatedAt: v.number(),
+    deletedAt: v.optional(v.number()), // Soft delete timestamp
   })
     .index("by_number", ["poNumber"])
     .index("by_status", ["status"])
-    .index("by_date", ["date"]),
+    .index("by_date", ["date"])
+    .index("by_deleted", ["deletedAt"]),
 
   // Receipts (Kwitansi) table
   receipts: defineTable({
@@ -142,9 +150,11 @@ export default defineSchema({
     notes: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
+    deletedAt: v.optional(v.number()), // Soft delete timestamp
   })
     .index("by_number", ["receiptNumber"])
-    .index("by_date", ["date"]),
+    .index("by_date", ["date"])
+    .index("by_deleted", ["deletedAt"]),
 
   // Document counter for auto-generating numbers
   documentCounters: defineTable({
@@ -157,4 +167,52 @@ export default defineSchema({
     lastNumber: v.number(),
     year: v.number(),
   }).index("by_type_year", ["type", "year"]),
+
+  // Email settings (SMTP configuration)
+  emailSettings: defineTable({
+    smtpHost: v.string(),
+    smtpPort: v.number(),
+    smtpSecure: v.boolean(), // true for SSL/TLS
+    smtpUser: v.string(),
+    smtpPassword: v.string(), // encrypted in production
+    senderName: v.string(),
+    senderEmail: v.string(),
+    replyToEmail: v.optional(v.string()),
+    isConfigured: v.boolean(),
+    lastTestedAt: v.optional(v.number()),
+    testStatus: v.optional(v.union(v.literal("success"), v.literal("failed"))),
+    // Email template settings
+    emailHeaderColor: v.optional(v.string()), // Primary color for email header
+    emailFooterText: v.optional(v.string()), // Custom footer text
+    includePaymentInfo: v.optional(v.boolean()), // Include bank account info in email
+    // Auto-reminder settings
+    reminderEnabled: v.optional(v.boolean()), // Enable auto-reminders (default: false)
+    reminderDaysBeforeDue: v.optional(v.number()), // Days before due date to send reminder
+    reminderDaysAfterDue: v.optional(v.number()), // Days after due date for overdue reminder
+    reminderSubject: v.optional(v.string()), // Custom reminder email subject
+    reminderMessage: v.optional(v.string()), // Custom reminder email message
+  }),
+
+  // Email logs for tracking sent emails
+  emailLogs: defineTable({
+    documentType: v.union(
+      v.literal("invoice"),
+      v.literal("purchaseOrder"),
+      v.literal("receipt")
+    ),
+    documentId: v.string(),
+    documentNumber: v.string(),
+    recipientEmail: v.string(),
+    recipientName: v.optional(v.string()),
+    subject: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("sent"),
+      v.literal("failed")
+    ),
+    errorMessage: v.optional(v.string()),
+    sentAt: v.number(),
+  })
+    .index("by_document", ["documentType", "documentId"])
+    .index("by_status", ["status"]),
 });

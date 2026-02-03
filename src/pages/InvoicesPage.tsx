@@ -5,6 +5,7 @@ import { Header } from "@/components/layout/Header"
 import { InvoiceForm } from "@/components/forms/InvoiceForm"
 import { InvoicePreview } from "@/components/previews/InvoicePreview"
 import { StatusDropdown } from "@/components/forms/StatusDropdown"
+import { EmailDialog } from "@/components/forms/EmailDialog"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { SearchInput } from "@/components/ui/search-input"
@@ -29,7 +30,8 @@ import {
 import type { InvoiceFormData, InvoiceStatus } from "@/lib/types"
 import { statusLabels } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import { IconArrowLeft, IconPrinter, IconEye, IconTrash, IconEdit } from "@tabler/icons-react"
+import { downloadInvoicePdf } from "@/lib/pdf"
+import { IconArrowLeft, IconPrinter, IconEye, IconTrash, IconEdit, IconMail, IconLoader2 } from "@tabler/icons-react"
 import type { Id } from "../../convex/_generated/dataModel"
 import { toast } from "sonner"
 import { useDebounce } from "@/hooks/useDebounce"
@@ -51,12 +53,16 @@ export function InvoicesPage() {
   }), [debouncedSearch, statusFilter, startDate, endDate])
 
   const invoices = useQuery(api.invoices.search, searchArgs)
+  const defaultBankAccount = useQuery(api.bankAccounts.getDefault)
+  const companySettings = useQuery(api.companySettings.getWithUrls)
   const deleteInvoice = useMutation(api.invoices.remove)
 
   const [viewMode, setViewMode] = useState<ViewMode>("list")
   const [previewData, setPreviewData] = useState<InvoiceFormData | null>(null)
+  const [previewId, setPreviewId] = useState<string | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false)
 
   const handlePreview = (data: InvoiceFormData) => {
     setPreviewData(data)
@@ -86,8 +92,41 @@ export function InvoicesPage() {
     }
   }
 
-  const handlePrint = () => {
-    window.print()
+  const [isPrinting, setIsPrinting] = useState(false)
+
+  const handlePrint = async () => {
+    if (!previewData) return
+
+    setIsPrinting(true)
+    try {
+      const bankAccount = defaultBankAccount ? {
+        bankName: defaultBankAccount.bankName,
+        accountNumber: defaultBankAccount.accountNumber,
+        accountHolder: defaultBankAccount.accountHolder,
+        branch: defaultBankAccount.branch,
+      } : undefined
+
+      // Watermark options from company settings
+      const watermark = companySettings?.watermarkEnabled ? {
+        enabled: true,
+        text: companySettings.watermarkText || companySettings.name,
+        opacity: companySettings.watermarkOpacity ?? 10,
+      } : undefined
+
+      await downloadInvoicePdf(
+        previewData,
+        `${previewData.invoiceNumber}.pdf`,
+        bankAccount,
+        companySettings?.logoUrl || undefined,
+        watermark
+      )
+      toast.success("PDF berhasil diunduh")
+    } catch (error) {
+      console.error("Failed to generate PDF:", error)
+      toast.error("Gagal membuat PDF")
+    } finally {
+      setIsPrinting(false)
+    }
   }
 
   if (viewMode === "create") {
@@ -122,12 +161,54 @@ export function InvoicesPage() {
             <IconArrowLeft className="h-4 w-4 mr-2" />
             Kembali ke Form
           </Button>
-          <Button onClick={handlePrint}>
-            <IconPrinter className="h-4 w-4 mr-2" />
-            Print / Download
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setEmailDialogOpen(true)}>
+              <IconMail className="h-4 w-4 mr-2" />
+              Kirim Email
+            </Button>
+            <Button onClick={handlePrint} disabled={isPrinting}>
+              {isPrinting ? (
+                <>
+                  <IconLoader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Membuat PDF...
+                </>
+              ) : (
+                <>
+                  <IconPrinter className="h-4 w-4 mr-2" />
+                  Download PDF
+                </>
+              )}
+            </Button>
+          </div>
         </div>
         <InvoicePreview data={previewData} />
+
+        {/* Email Dialog */}
+        <EmailDialog
+          open={emailDialogOpen}
+          onOpenChange={setEmailDialogOpen}
+          documentType="invoice"
+          documentId={previewId || ""}
+          documentNumber={previewData.invoiceNumber}
+          recipientEmail={previewData.customer.email}
+          recipientName={previewData.customer.name}
+          total={previewData.total}
+          dueDate={previewData.dueDate}
+          companyName={previewData.company.name}
+          invoiceData={previewData}
+          bankAccount={defaultBankAccount ? {
+            bankName: defaultBankAccount.bankName,
+            accountNumber: defaultBankAccount.accountNumber,
+            accountHolder: defaultBankAccount.accountHolder,
+            branch: defaultBankAccount.branch,
+          } : undefined}
+          logoUrl={companySettings?.logoUrl || undefined}
+          watermark={companySettings?.watermarkEnabled ? {
+            enabled: true,
+            text: companySettings.watermarkText || companySettings.name,
+            opacity: companySettings.watermarkOpacity ?? 10,
+          } : undefined}
+        />
       </div>
     )
   }
@@ -235,6 +316,7 @@ export function InvoicesPage() {
                           notes: invoice.notes,
                           status: invoice.status,
                         })
+                        setPreviewId(invoice._id)
                         setViewMode("preview")
                       }}
                     >

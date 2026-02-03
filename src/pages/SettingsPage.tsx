@@ -7,6 +7,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { FileUpload } from "@/components/ui/file-upload"
+import { EmailSettingsCard } from "@/components/settings/EmailSettingsCard"
+import { EmailTemplateCard } from "@/components/settings/EmailTemplateCard"
+import { ReminderSettingsCard } from "@/components/settings/ReminderSettingsCard"
+import { WatermarkSettingsCard } from "@/components/settings/WatermarkSettingsCard"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -474,6 +478,18 @@ export function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Watermark Settings Section */}
+      <WatermarkSettingsCard />
+
+      {/* Email Settings Section */}
+      <EmailSettingsCard />
+
+      {/* Email Template Section */}
+      <EmailTemplateCard />
+
+      {/* Auto-Reminder Section */}
+      <ReminderSettingsCard />
 
       {/* Bank Account Dialog */}
       <Dialog open={bankDialogOpen} onOpenChange={setBankDialogOpen}>

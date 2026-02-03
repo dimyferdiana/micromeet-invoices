@@ -101,8 +101,8 @@ export function DashboardPage() {
         {/* Revenue Chart */}
         <Card className="lg:col-span-2 p-6">
           <h2 className="text-lg font-semibold mb-4">Pendapatan 6 Bulan Terakhir</h2>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-64 min-h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={200}>
               <BarChart data={revenueChart}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="month" className="text-xs" />
