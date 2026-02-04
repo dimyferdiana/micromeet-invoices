@@ -224,16 +224,16 @@ export function InvoiceForm({ editId, initialData, onPreview, onSaved }: Invoice
           <CardTitle>{isEditMode ? "Edit Invoice" : "Buat Invoice Baru"}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Document Info */}
-          <div className="grid grid-cols-3 gap-4">
+          {/* Document Info - Responsive */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="invoiceNumber">Nomor Invoice</Label>
               <Input
                 id="invoiceNumber"
                 value={formData.invoiceNumber}
-                onChange={(e) => setFormData((prev) => ({ ...prev, invoiceNumber: e.target.value }))}
                 placeholder="INV-2024-0001"
-                disabled={isEditMode}
+                disabled={true}
+                readOnly={true}
               />
             </div>
             <div className="space-y-2">
@@ -258,8 +258,8 @@ export function InvoiceForm({ editId, initialData, onPreview, onSaved }: Invoice
 
           <Separator />
 
-          {/* Company and Customer Info */}
-          <div className="grid md:grid-cols-2 gap-6">
+          {/* Company and Customer Info - Responsive */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <CompanyInfoFields company={formData.company} onChange={updateCompany} title="Dari" />
             <div className="space-y-4">
               <CustomerSelector
@@ -283,9 +283,9 @@ export function InvoiceForm({ editId, initialData, onPreview, onSaved }: Invoice
           {/* Line Items */}
           <LineItemsEditor items={formData.items} onChange={updateItems} />
 
-          {/* Totals */}
+          {/* Totals - Responsive */}
           <div className="flex justify-end">
-            <div className="w-72 space-y-2">
+            <div className="w-full md:w-72 space-y-2">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span>{formatCurrency(formData.subtotal)}</span>
@@ -317,9 +317,9 @@ export function InvoiceForm({ editId, initialData, onPreview, onSaved }: Invoice
 
           <Separator />
 
-          {/* Terms & Conditions */}
+          {/* Terms & Conditions - Responsive */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
               <Label htmlFor="terms">Syarat & Ketentuan</Label>
               {termsTemplates && termsTemplates.length > 0 && (
                 <Select
@@ -331,7 +331,7 @@ export function InvoiceForm({ editId, initialData, onPreview, onSaved }: Invoice
                     }
                   }}
                 >
-                  <SelectTrigger className="w-48">
+                  <SelectTrigger className="w-full md:w-48">
                     <SelectValue placeholder="Pilih template..." />
                   </SelectTrigger>
                   <SelectContent>

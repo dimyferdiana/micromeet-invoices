@@ -67,6 +67,18 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const auth = await getAuthContext(ctx);
+
+    // Check for duplicate receipt number within the organization
+    const existingReceipt = await ctx.db
+      .query("receipts")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .filter((q) => q.eq(q.field("receiptNumber"), args.receiptNumber))
+      .first();
+
+    if (existingReceipt) {
+      throw new Error(`Receipt number ${args.receiptNumber} already exists`);
+    }
+
     const now = Date.now();
     return await ctx.db.insert("receipts", {
       ...args,
@@ -115,6 +127,19 @@ export const update = mutation({
 
     if (!canEditDocument(auth, existing.createdBy)) {
       throw new Error("Unauthorized: You can only edit receipts you created");
+    }
+
+    // Check for duplicate receipt number if changing it
+    if (updates.receiptNumber && updates.receiptNumber !== existing.receiptNumber) {
+      const duplicateReceipt = await ctx.db
+        .query("receipts")
+        .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+        .filter((q) => q.eq(q.field("receiptNumber"), updates.receiptNumber))
+        .first();
+
+      if (duplicateReceipt) {
+        throw new Error(`Receipt number ${updates.receiptNumber} already exists`);
+      }
     }
 
     await ctx.db.patch(id, {

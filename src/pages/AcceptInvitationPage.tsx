@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useQuery, useMutation } from "convex/react"
 import { useConvexAuth } from "convex/react"
 import { api } from "../../convex/_generated/api"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { IconLoader2, IconFileInvoice, IconCheck, IconX, IconUserPlus } from "@tabler/icons-react"
+import { IconLoader2, IconCheck, IconX, IconUserPlus } from "@tabler/icons-react"
 import { toast } from "sonner"
 
 interface AcceptInvitationPageProps {

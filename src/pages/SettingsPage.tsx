@@ -276,7 +276,7 @@ export function SettingsPage({ defaultTab }: SettingsPageProps) {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full grid-cols-7 overflow-x-auto lg:w-auto lg:inline-flex">
           <TabsTrigger value="profile" className="gap-2">
             <IconUser className="h-4 w-4" />
             <span className="hidden sm:inline">Profil</span>
@@ -359,11 +359,12 @@ export function SettingsPage({ defaultTab }: SettingsPageProps) {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="phone">Telepon</Label>
                       <Input
                         id="phone"
+                        type="tel"
                         placeholder="021-12345678"
                         value={formData.phone}
                         onChange={(e) => updateField("phone", e.target.value)}
@@ -382,7 +383,7 @@ export function SettingsPage({ defaultTab }: SettingsPageProps) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="website">Website</Label>
                       <Input
@@ -431,14 +432,14 @@ export function SettingsPage({ defaultTab }: SettingsPageProps) {
         <TabsContent value="bank">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <CardTitle>Rekening Bank</CardTitle>
                   <CardDescription>
                     Daftar rekening bank untuk pembayaran invoice
                   </CardDescription>
                 </div>
-                <Button onClick={() => handleOpenBankDialog()}>
+                <Button onClick={() => handleOpenBankDialog()} className="w-full sm:w-auto">
                   <IconPlus className="h-4 w-4 mr-2" />
                   Tambah Rekening
                 </Button>
@@ -454,13 +455,13 @@ export function SettingsPage({ defaultTab }: SettingsPageProps) {
                   {bankAccounts.map((account) => (
                     <div
                       key={account._id}
-                      className="flex items-center justify-between p-4 border rounded-lg"
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
                         <button
                           type="button"
                           onClick={() => handleSetDefault(account._id)}
-                          className="text-yellow-500 hover:text-yellow-600"
+                          className="text-yellow-500 hover:text-yellow-600 shrink-0"
                           title={account.isDefault ? "Rekening Utama" : "Jadikan Rekening Utama"}
                         >
                           {account.isDefault ? (
@@ -469,9 +470,9 @@ export function SettingsPage({ defaultTab }: SettingsPageProps) {
                             <IconStar className="h-5 w-5" />
                           )}
                         </button>
-                        <div>
+                        <div className="min-w-0">
                           <p className="font-medium">{account.bankName}</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm text-muted-foreground truncate">
                             {account.accountNumber} • a.n. {account.accountHolder}
                           </p>
                           {account.branch && (
@@ -481,7 +482,7 @@ export function SettingsPage({ defaultTab }: SettingsPageProps) {
                           )}
                         </div>
                       </div>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 sm:shrink-0">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -627,7 +628,7 @@ export function SettingsPage({ defaultTab }: SettingsPageProps) {
                 }
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="branch">Cabang</Label>
                 <Input

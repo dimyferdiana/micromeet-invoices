@@ -46,11 +46,12 @@ export function CompanyInfoFields({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="company-phone">Telepon</Label>
             <Input
               id="company-phone"
+              type="tel"
               placeholder="021-12345678"
               value={company.phone || ""}
               onChange={(e) => updateField("phone", e.target.value)}
@@ -69,7 +70,7 @@ export function CompanyInfoFields({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="company-website">Website</Label>
             <Input

@@ -50,8 +50,8 @@ export function TeamManagementCard() {
         role: newRole as "admin" | "member",
       })
       toast.success("Role anggota berhasil diubah")
-    } catch (error: any) {
-      toast.error(error.message || "Gagal mengubah role anggota")
+    } catch (error: Error | unknown) {
+      toast.error(error instanceof Error ? error.message : "Gagal mengubah role anggota")
     }
   }
 
@@ -60,8 +60,8 @@ export function TeamManagementCard() {
     try {
       await removeMember({ memberId: removeMemberId as Id<"organizationMembers"> })
       toast.success("Anggota berhasil dihapus")
-    } catch (error: any) {
-      toast.error(error.message || "Gagal menghapus anggota")
+    } catch (error: Error | unknown) {
+      toast.error(error instanceof Error ? error.message : "Gagal menghapus anggota")
     }
     setRemoveMemberId(null)
     setRemoveMemberName("")
@@ -71,8 +71,8 @@ export function TeamManagementCard() {
     try {
       await cancelInvitation({ invitationId: invitationId as Id<"invitations"> })
       toast.success("Undangan berhasil dibatalkan")
-    } catch (error: any) {
-      toast.error(error.message || "Gagal membatalkan undangan")
+    } catch (error: Error | unknown) {
+      toast.error(error instanceof Error ? error.message : "Gagal membatalkan undangan")
     }
   }
 
@@ -80,8 +80,8 @@ export function TeamManagementCard() {
     try {
       await resendInvitation({ invitationId: invitationId as Id<"invitations"> })
       toast.success("Undangan berhasil dikirim ulang")
-    } catch (error: any) {
-      toast.error(error.message || "Gagal mengirim ulang undangan")
+    } catch (error: Error | unknown) {
+      toast.error(error instanceof Error ? error.message : "Gagal mengirim ulang undangan")
     }
   }
 
@@ -98,7 +98,7 @@ export function TeamManagementCard() {
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <CardTitle>Tim</CardTitle>
               <CardDescription>
@@ -106,7 +106,7 @@ export function TeamManagementCard() {
               </CardDescription>
             </div>
             {canManage && (
-              <Button onClick={() => setInviteDialogOpen(true)}>
+              <Button onClick={() => setInviteDialogOpen(true)} className="w-full sm:w-auto">
                 <IconPlus className="h-4 w-4 mr-2" />
                 Undang Anggota
               </Button>
@@ -127,9 +127,9 @@ export function TeamManagementCard() {
               members.map((member) => (
                 <div
                   key={member._id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     {member.image ? (
                       <img
                         src={member.image}
@@ -141,17 +141,17 @@ export function TeamManagementCard() {
                         <IconUser className="h-4 w-4 text-primary" />
                       </div>
                     )}
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="font-medium">
                         {member.name}
                         {member.isCurrentUser && (
                           <span className="text-muted-foreground text-sm font-normal"> (Anda)</span>
                         )}
                       </p>
-                      <p className="text-sm text-muted-foreground">{member.email}</p>
+                      <p className="text-sm text-muted-foreground truncate">{member.email}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 sm:shrink-0">
                     {member.role === "owner" ? (
                       <Badge>Pemilik</Badge>
                     ) : canManage ? (
@@ -160,7 +160,7 @@ export function TeamManagementCard() {
                           value={member.role}
                           onValueChange={(val) => handleChangeRole(member._id, val)}
                         >
-                          <SelectTrigger className="w-[120px] h-8">
+                          <SelectTrigger className="w-30 h-8">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -200,22 +200,22 @@ export function TeamManagementCard() {
               {pendingInvitations.map((invitation) => (
                 <div
                   key={invitation._id}
-                  className="flex items-center justify-between p-4 border border-dashed rounded-lg"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border border-dashed rounded-lg"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
                       <IconMail className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <div>
-                      <p className="font-medium">{invitation.email}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium truncate">{invitation.email}</p>
                       <p className="text-xs text-muted-foreground">
                         Diundang oleh {invitation.invitedByName} sebagai{" "}
                         {invitation.role === "admin" ? "Admin" : "Anggota"}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-yellow-700 border-yellow-300 bg-yellow-50">
+                  <div className="flex items-center gap-2 sm:shrink-0">
+                    <Badge variant="outline" className="text-yellow-700 border-yellow-300 bg-yellow-50 shrink-0">
                       Menunggu
                     </Badge>
                     {canManage && (
@@ -230,7 +230,7 @@ export function TeamManagementCard() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-destructive hover:text-destructive"
+                          className="text-destructive hover:text-destructive shrink-0"
                           onClick={() => handleCancelInvitation(invitation._id)}
                         >
                           <IconX className="h-4 w-4" />

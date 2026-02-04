@@ -14,67 +14,68 @@ export function InvoicePreview({ data }: InvoicePreviewProps) {
   const defaultBankAccount = useQuery(api.bankAccounts.getDefault)
 
   return (
-    <div className="bg-white p-8 shadow-lg max-w-4xl mx-auto" id="invoice-preview">
-      {/* Header */}
-      <div className="flex justify-between items-start mb-8">
-        <div className="flex items-start gap-4">
+    <div className="bg-white p-4 md:p-8 shadow-lg max-w-full md:max-w-4xl mx-auto" id="invoice-preview">
+      {/* Header - Responsive */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6 md:mb-8">
+        <div className="flex items-start gap-3 md:gap-4">
           {companySettings?.logoUrl && (
             <img
               src={companySettings.logoUrl}
               alt="Company Logo"
-              className="max-h-16 max-w-32 object-contain"
+              className="max-h-12 md:max-h-16 max-w-24 md:max-w-32 object-contain"
             />
           )}
           <div>
-            <h1 className="text-3xl font-bold text-primary mb-2">INVOICE</h1>
-            <p className="text-lg font-semibold">{data.invoiceNumber}</p>
+            <h1 className="text-xl md:text-3xl font-bold text-primary mb-1 md:mb-2">INVOICE</h1>
+            <p className="font-heading text-sm md:text-lg font-semibold">{data.invoiceNumber}</p>
           </div>
         </div>
         <Badge className={statusColors[data.status]}>{statusLabels[data.status]}</Badge>
       </div>
 
-      {/* Company and Customer Info */}
-      <div className="grid grid-cols-2 gap-8 mb-8">
+      {/* Company and Customer Info - Responsive */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8">
         {/* From */}
         <div>
-          <h3 className="text-sm font-semibold text-muted-foreground mb-2">DARI</h3>
-          <p className="font-semibold text-lg">{data.company.name}</p>
-          <p className="text-muted-foreground whitespace-pre-line">{data.company.address}</p>
-          {data.company.phone && <p className="text-muted-foreground">Tel: {data.company.phone}</p>}
+          <h3 className="text-xs md:text-sm font-semibold text-muted-foreground mb-2">DARI</h3>
+          <p className="font-heading font-semibold text-base md:text-lg">{data.company.name}</p>
+          <p className="text-xs md:text-sm text-muted-foreground whitespace-pre-line">{data.company.address}</p>
+          {data.company.phone && <p className="text-xs md:text-sm text-muted-foreground">Tel: {data.company.phone}</p>}
           {data.company.email && (
-            <p className="text-muted-foreground">Email: {data.company.email}</p>
+            <p className="text-xs md:text-sm text-muted-foreground">Email: {data.company.email}</p>
           )}
-          {data.company.taxId && <p className="text-muted-foreground">NPWP: {data.company.taxId}</p>}
+          {data.company.taxId && <p className="text-xs md:text-sm text-muted-foreground">NPWP: {data.company.taxId}</p>}
         </div>
 
         {/* To */}
         <div>
-          <h3 className="text-sm font-semibold text-muted-foreground mb-2">KEPADA</h3>
-          <p className="font-semibold text-lg">{data.customer.name}</p>
-          <p className="text-muted-foreground whitespace-pre-line">{data.customer.address}</p>
+          <h3 className="text-xs md:text-sm font-semibold text-muted-foreground mb-2">KEPADA</h3>
+          <p className="font-heading font-semibold text-base md:text-lg">{data.customer.name}</p>
+          <p className="text-xs md:text-sm text-muted-foreground whitespace-pre-line">{data.customer.address}</p>
           {data.customer.phone && (
-            <p className="text-muted-foreground">Tel: {data.customer.phone}</p>
+            <p className="text-xs md:text-sm text-muted-foreground">Tel: {data.customer.phone}</p>
           )}
           {data.customer.email && (
-            <p className="text-muted-foreground">Email: {data.customer.email}</p>
+            <p className="text-xs md:text-sm text-muted-foreground">Email: {data.customer.email}</p>
           )}
         </div>
       </div>
 
-      {/* Dates */}
-      <div className="grid grid-cols-2 gap-8 mb-8">
+      {/* Dates - Responsive */}
+      <div className="grid grid-cols-2 gap-4 md:gap-8 mb-6 md:mb-8">
         <div>
-          <h3 className="text-sm font-semibold text-muted-foreground mb-1">TANGGAL INVOICE</h3>
-          <p className="font-medium">{formatDate(data.date)}</p>
+          <h3 className="text-xs md:text-sm font-semibold text-muted-foreground mb-1">TANGGAL INVOICE</h3>
+          <p className="text-sm md:text-base font-medium">{formatDate(data.date)}</p>
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-muted-foreground mb-1">JATUH TEMPO</h3>
-          <p className="font-medium">{formatDate(data.dueDate)}</p>
+          <h3 className="text-xs md:text-sm font-semibold text-muted-foreground mb-1">JATUH TEMPO</h3>
+          <p className="text-sm md:text-base font-medium">{formatDate(data.dueDate)}</p>
         </div>
       </div>
 
-      {/* Items Table - matching PDF style with primary header and alternating rows */}
-      <table className="w-full mb-8">
+      {/* Items Table - Responsive with horizontal scroll on mobile */}
+      <div className="overflow-x-auto mb-6 md:mb-8">
+        <table className="w-full min-w-125">
         <thead>
           <tr className="bg-primary text-primary-foreground">
             <th className="text-left py-3 px-3 font-semibold">Deskripsi</th>
@@ -93,31 +94,32 @@ export function InvoicePreview({ data }: InvoicePreviewProps) {
             </tr>
           ))}
         </tbody>
-      </table>
+        </table>
+      </div>
 
-      {/* Totals */}
-      <div className="flex justify-end mb-8">
-        <div className="w-72">
-          <div className="flex justify-between py-2">
+      {/* Totals - Responsive */}
+      <div className="flex justify-end mb-6 md:mb-8">
+        <div className="w-full md:w-72">
+          <div className="flex justify-between py-2 text-sm md:text-base">
             <span className="text-muted-foreground">Subtotal</span>
             <span>{formatCurrency(data.subtotal)}</span>
           </div>
-          <div className="flex justify-between py-2">
+          <div className="flex justify-between py-2 text-sm md:text-base">
             <span className="text-muted-foreground">Pajak ({data.taxRate}%)</span>
             <span>{formatCurrency(data.taxAmount)}</span>
           </div>
-          <div className="flex justify-between py-3 border-t-2 border-primary font-bold text-lg">
+          <div className="flex justify-between py-3 border-t-2 border-primary font-bold text-base md:text-lg">
             <span>Total</span>
             <span>{formatCurrency(data.total)}</span>
           </div>
         </div>
       </div>
 
-      {/* Bank Account Info */}
+      {/* Bank Account Info - Responsive */}
       {defaultBankAccount && (
-        <div className="bg-gray-50 p-4 rounded-lg mb-8">
-          <h3 className="text-sm font-semibold text-muted-foreground mb-2">INFORMASI PEMBAYARAN</h3>
-          <div className="grid grid-cols-2 gap-4">
+        <div className="bg-gray-50 p-3 md:p-4 rounded-lg mb-6 md:mb-8">
+          <h3 className="text-xs md:text-sm font-semibold text-muted-foreground mb-2">INFORMASI PEMBAYARAN</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Bank</p>
               <p className="font-medium">{defaultBankAccount.bankName}</p>

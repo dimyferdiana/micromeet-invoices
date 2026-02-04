@@ -1,0 +1,447 @@
+/**
+ * Micromeet CSS Framework - Typography Tokens
+ *
+ * Font Stack:
+ * - Primary Headings: Bricolage Grotesque Variable
+ * - Body Text: Geist Variable
+ * - Monospace Labels: Geist Mono Variable
+ * - UI Elements: Inter Variable
+ */
+
+:root {
+  /* ========================================
+     FONT FAMILIES
+     ======================================== */
+  --mm-font-heading: 'Bricolage Grotesque Variable', sans-serif;
+  --mm-font-body: 'Geist Variable', sans-serif;
+  --mm-font-mono: 'Geist Mono Variable', monospace;
+  --mm-font-ui: 'Inter Variable', sans-serif;
+  --mm-font-sans: 'Geist Variable', sans-serif;
+
+  /* ========================================
+     FONT WEIGHTS
+     ======================================== */
+  --mm-font-weight-regular: 400;
+  --mm-font-weight-medium: 500;
+  --mm-font-weight-semibold: 600;
+
+  /* ========================================
+     LINE HEIGHTS
+     ======================================== */
+  --mm-line-height-none: 1;
+  --mm-line-height-tight: 1.15;
+  --mm-line-height-snug: 1.2;
+  --mm-line-height-normal: 1.4;
+  --mm-line-height-relaxed: 1.5;
+  --mm-line-height-loose: 1.6;
+
+  /* ========================================
+     LETTER SPACING
+     ======================================== */
+  --mm-letter-spacing-tighter: -4px;
+  --mm-letter-spacing-tight: -3px;
+  --mm-letter-spacing-snug: -1px;
+  --mm-letter-spacing-normal: 0;
+  --mm-letter-spacing-wide: 0.025em;
+  --mm-letter-spacing-body: -0.36px;
+
+  /* ========================================
+     FONT SIZES - DESKTOP (1280px+)
+     Base values - these are the default
+     ======================================== */
+
+  /* Headings */
+  --mm-text-h1: 72px;
+  --mm-text-h2: 56px;
+  --mm-text-h3: 40px;
+  --mm-text-h4: 32px;
+  --mm-text-h5: 24px;
+  --mm-text-h6: 20px;
+
+  /* Body Text */
+  --mm-text-xl: 20px;
+  --mm-text-lg: 18px;
+  --mm-text-base: 16px;
+  --mm-text-sm: 14px;
+  --mm-text-xs: 12px;
+
+  /* Specific Roles */
+  --mm-text-hero: 72px;
+  --mm-text-section: 56px;
+  --mm-text-stats: 40px;
+  --mm-text-body-secondary: 18px;
+  --mm-text-body-tertiary: 18px;
+  --mm-text-tag: 16px;
+  --mm-text-button: 14px;
+  --mm-text-caption: 12px;
+
+  /* ========================================
+     LETTER SPACING BY ROLE
+     ======================================== */
+  --mm-tracking-h1: -4px;
+  --mm-tracking-h2: -3px;
+  --mm-tracking-h3: -1px;
+  --mm-tracking-h4: -0.5px;
+  --mm-tracking-body: -0.36px;
+  --mm-tracking-button: 0.025em;
+  --mm-tracking-tag: 0;
+
+  /* ========================================
+     COMPOSITE TYPOGRAPHY TOKENS
+     These combine size, weight, line-height
+     ======================================== */
+
+  /* H1 - Hero Title */
+  --mm-typography-h1-size: var(--mm-text-h1);
+  --mm-typography-h1-weight: var(--mm-font-weight-semibold);
+  --mm-typography-h1-line-height: var(--mm-line-height-none);
+  --mm-typography-h1-letter-spacing: var(--mm-tracking-h1);
+  --mm-typography-h1-font: var(--mm-font-heading);
+
+  /* H2 - Section Title */
+  --mm-typography-h2-size: var(--mm-text-h2);
+  --mm-typography-h2-weight: var(--mm-font-weight-regular);
+  --mm-typography-h2-line-height: var(--mm-line-height-tight);
+  --mm-typography-h2-letter-spacing: var(--mm-tracking-h2);
+  --mm-typography-h2-font: var(--mm-font-heading);
+
+  /* H3 - Stats/Numbers */
+  --mm-typography-h3-size: var(--mm-text-h3);
+  --mm-typography-h3-weight: var(--mm-font-weight-semibold);
+  --mm-typography-h3-line-height: var(--mm-line-height-snug);
+  --mm-typography-h3-letter-spacing: var(--mm-tracking-h3);
+  --mm-typography-h3-font: var(--mm-font-heading);
+
+  /* H4 */
+  --mm-typography-h4-size: var(--mm-text-h4);
+  --mm-typography-h4-weight: var(--mm-font-weight-semibold);
+  --mm-typography-h4-line-height: var(--mm-line-height-snug);
+  --mm-typography-h4-letter-spacing: var(--mm-tracking-h4);
+  --mm-typography-h4-font: var(--mm-font-heading);
+
+  /* H5 */
+  --mm-typography-h5-size: var(--mm-text-h5);
+  --mm-typography-h5-weight: var(--mm-font-weight-medium);
+  --mm-typography-h5-line-height: var(--mm-line-height-snug);
+  --mm-typography-h5-letter-spacing: var(--mm-tracking-h4);
+  --mm-typography-h5-font: var(--mm-font-heading);
+
+  /* H6 */
+  --mm-typography-h6-size: var(--mm-text-h6);
+  --mm-typography-h6-weight: var(--mm-font-weight-medium);
+  --mm-typography-h6-line-height: var(--mm-line-height-snug);
+  --mm-typography-h6-letter-spacing: 0;
+  --mm-typography-h6-font: var(--mm-font-heading);
+
+  /* Body Large - Secondary (Inter) */
+  --mm-typography-body-lg-secondary-size: var(--mm-text-body-secondary);
+  --mm-typography-body-lg-secondary-weight: var(--mm-font-weight-regular);
+  --mm-typography-body-lg-secondary-line-height: var(--mm-line-height-loose);
+  --mm-typography-body-lg-secondary-letter-spacing: 0;
+  --mm-typography-body-lg-secondary-font: var(--mm-font-ui);
+
+  /* Body Large - Tertiary (Geist) */
+  --mm-typography-body-lg-tertiary-size: var(--mm-text-body-tertiary);
+  --mm-typography-body-lg-tertiary-weight: var(--mm-font-weight-regular);
+  --mm-typography-body-lg-tertiary-line-height: var(--mm-line-height-normal);
+  --mm-typography-body-lg-tertiary-letter-spacing: var(--mm-tracking-body);
+  --mm-typography-body-lg-tertiary-font: var(--mm-font-body);
+
+  /* Body Base */
+  --mm-typography-body-size: var(--mm-text-base);
+  --mm-typography-body-weight: var(--mm-font-weight-regular);
+  --mm-typography-body-line-height: var(--mm-line-height-normal);
+  --mm-typography-body-letter-spacing: 0;
+  --mm-typography-body-font: var(--mm-font-body);
+
+  /* Body Small */
+  --mm-typography-body-sm-size: var(--mm-text-sm);
+  --mm-typography-body-sm-weight: var(--mm-font-weight-regular);
+  --mm-typography-body-sm-line-height: var(--mm-line-height-normal);
+  --mm-typography-body-sm-letter-spacing: 0;
+  --mm-typography-body-sm-font: var(--mm-font-body);
+
+  /* Tag/Label (Geist Mono) */
+  --mm-typography-tag-size: var(--mm-text-tag);
+  --mm-typography-tag-weight: var(--mm-font-weight-regular);
+  --mm-typography-tag-line-height: var(--mm-line-height-none);
+  --mm-typography-tag-letter-spacing: var(--mm-tracking-tag);
+  --mm-typography-tag-font: var(--mm-font-mono);
+
+  /* Button (Inter) */
+  --mm-typography-button-size: var(--mm-text-button);
+  --mm-typography-button-weight: var(--mm-font-weight-medium);
+  --mm-typography-button-line-height: var(--mm-line-height-relaxed);
+  --mm-typography-button-letter-spacing: var(--mm-tracking-button);
+  --mm-typography-button-font: var(--mm-font-ui);
+
+  /* Caption */
+  --mm-typography-caption-size: var(--mm-text-caption);
+  --mm-typography-caption-weight: var(--mm-font-weight-regular);
+  --mm-typography-caption-line-height: var(--mm-line-height-normal);
+  --mm-typography-caption-letter-spacing: 0;
+  --mm-typography-caption-font: var(--mm-font-body);
+
+  /* Code/Mono */
+  --mm-typography-code-size: var(--mm-text-sm);
+  --mm-typography-code-weight: var(--mm-font-weight-regular);
+  --mm-typography-code-line-height: var(--mm-line-height-relaxed);
+  --mm-typography-code-letter-spacing: 0;
+  --mm-typography-code-font: var(--mm-font-mono);
+}
+
+/* ========================================
+   TABLET BREAKPOINT (800px - 1279px)
+   Scaling Factor: 0.85
+   ======================================== */
+@media (min-width: 800px) and (max-width: 1279px) {
+  :root {
+    /* Headings - Tablet */
+    --mm-text-h1: 56px;
+    --mm-text-h2: 44px;
+    --mm-text-h3: 32px;
+    --mm-text-h4: 28px;
+    --mm-text-h5: 22px;
+    --mm-text-h6: 18px;
+
+    /* Specific Roles - Tablet */
+    --mm-text-hero: 56px;
+    --mm-text-section: 44px;
+    --mm-text-stats: 32px;
+    --mm-text-body-secondary: 16px;
+    --mm-text-body-tertiary: 16px;
+    --mm-text-tag: 15px;
+    --mm-text-button: 13px;
+
+    /* Letter Spacing - Tablet */
+    --mm-tracking-h1: -3.1px;
+    --mm-tracking-h2: -2.4px;
+    --mm-tracking-h3: -0.8px;
+    --mm-tracking-body: -0.32px;
+  }
+}
+
+/* ========================================
+   MOBILE BREAKPOINT (< 800px)
+   Scaling Factor: 0.70
+   ======================================== */
+@media (max-width: 799px) {
+  :root {
+    /* Headings - Mobile */
+    --mm-text-h1: 48px;
+    --mm-text-h2: 36px;
+    --mm-text-h3: 28px;
+    --mm-text-h4: 24px;
+    --mm-text-h5: 20px;
+    --mm-text-h6: 16px;
+
+    /* Specific Roles - Mobile */
+    --mm-text-hero: 48px;
+    --mm-text-section: 36px;
+    --mm-text-stats: 28px;
+    --mm-text-body-secondary: 14px;
+    --mm-text-body-tertiary: 14px;
+    --mm-text-tag: 14px;
+    --mm-text-button: 12px;
+
+    /* Letter Spacing - Mobile */
+    --mm-tracking-h1: -2.7px;
+    --mm-tracking-h2: -2px;
+    --mm-tracking-h3: -0.7px;
+    --mm-tracking-body: -0.28px;
+  }
+}
+
+/* ========================================
+   TYPOGRAPHY UTILITY CLASSES
+   Apply typography tokens to elements
+   ======================================== */
+
+/* Font Family Classes */
+.mm-font-heading {
+  font-family: var(--mm-font-heading);
+}
+
+.mm-font-body {
+  font-family: var(--mm-font-body);
+}
+
+.mm-font-mono {
+  font-family: var(--mm-font-mono);
+}
+
+.mm-font-ui {
+  font-family: var(--mm-font-ui);
+}
+
+/* Font Weight Classes */
+.mm-font-regular {
+  font-weight: var(--mm-font-weight-regular);
+}
+
+.mm-font-medium {
+  font-weight: var(--mm-font-weight-medium);
+}
+
+.mm-font-semibold {
+  font-weight: var(--mm-font-weight-semibold);
+}
+
+/* Text Size Classes */
+.mm-text-h1 {
+  font-size: var(--mm-text-h1);
+  font-family: var(--mm-typography-h1-font);
+  font-weight: var(--mm-typography-h1-weight);
+  line-height: var(--mm-typography-h1-line-height);
+  letter-spacing: var(--mm-typography-h1-letter-spacing);
+}
+
+.mm-text-h2 {
+  font-size: var(--mm-text-h2);
+  font-family: var(--mm-typography-h2-font);
+  font-weight: var(--mm-typography-h2-weight);
+  line-height: var(--mm-typography-h2-line-height);
+  letter-spacing: var(--mm-typography-h2-letter-spacing);
+}
+
+.mm-text-h3 {
+  font-size: var(--mm-text-h3);
+  font-family: var(--mm-typography-h3-font);
+  font-weight: var(--mm-typography-h3-weight);
+  line-height: var(--mm-typography-h3-line-height);
+  letter-spacing: var(--mm-typography-h3-letter-spacing);
+}
+
+.mm-text-h4 {
+  font-size: var(--mm-text-h4);
+  font-family: var(--mm-typography-h4-font);
+  font-weight: var(--mm-typography-h4-weight);
+  line-height: var(--mm-typography-h4-line-height);
+  letter-spacing: var(--mm-typography-h4-letter-spacing);
+}
+
+.mm-text-h5 {
+  font-size: var(--mm-text-h5);
+  font-family: var(--mm-typography-h5-font);
+  font-weight: var(--mm-typography-h5-weight);
+  line-height: var(--mm-typography-h5-line-height);
+  letter-spacing: var(--mm-typography-h5-letter-spacing);
+}
+
+.mm-text-h6 {
+  font-size: var(--mm-text-h6);
+  font-family: var(--mm-typography-h6-font);
+  font-weight: var(--mm-typography-h6-weight);
+  line-height: var(--mm-typography-h6-line-height);
+  letter-spacing: var(--mm-typography-h6-letter-spacing);
+}
+
+.mm-text-body-lg-secondary {
+  font-size: var(--mm-typography-body-lg-secondary-size);
+  font-family: var(--mm-typography-body-lg-secondary-font);
+  font-weight: var(--mm-typography-body-lg-secondary-weight);
+  line-height: var(--mm-typography-body-lg-secondary-line-height);
+  letter-spacing: var(--mm-typography-body-lg-secondary-letter-spacing);
+}
+
+.mm-text-body-lg-tertiary {
+  font-size: var(--mm-typography-body-lg-tertiary-size);
+  font-family: var(--mm-typography-body-lg-tertiary-font);
+  font-weight: var(--mm-typography-body-lg-tertiary-weight);
+  line-height: var(--mm-typography-body-lg-tertiary-line-height);
+  letter-spacing: var(--mm-typography-body-lg-tertiary-letter-spacing);
+}
+
+.mm-text-body {
+  font-size: var(--mm-typography-body-size);
+  font-family: var(--mm-typography-body-font);
+  font-weight: var(--mm-typography-body-weight);
+  line-height: var(--mm-typography-body-line-height);
+  letter-spacing: var(--mm-typography-body-letter-spacing);
+}
+
+.mm-text-body-sm {
+  font-size: var(--mm-typography-body-sm-size);
+  font-family: var(--mm-typography-body-sm-font);
+  font-weight: var(--mm-typography-body-sm-weight);
+  line-height: var(--mm-typography-body-sm-line-height);
+  letter-spacing: var(--mm-typography-body-sm-letter-spacing);
+}
+
+.mm-text-tag {
+  font-size: var(--mm-typography-tag-size);
+  font-family: var(--mm-typography-tag-font);
+  font-weight: var(--mm-typography-tag-weight);
+  line-height: var(--mm-typography-tag-line-height);
+  letter-spacing: var(--mm-typography-tag-letter-spacing);
+}
+
+.mm-text-button {
+  font-size: var(--mm-typography-button-size);
+  font-family: var(--mm-typography-button-font);
+  font-weight: var(--mm-typography-button-weight);
+  line-height: var(--mm-typography-button-line-height);
+  letter-spacing: var(--mm-typography-button-letter-spacing);
+}
+
+.mm-text-caption {
+  font-size: var(--mm-typography-caption-size);
+  font-family: var(--mm-typography-caption-font);
+  font-weight: var(--mm-typography-caption-weight);
+  line-height: var(--mm-typography-caption-line-height);
+  letter-spacing: var(--mm-typography-caption-letter-spacing);
+}
+
+.mm-text-code {
+  font-size: var(--mm-typography-code-size);
+  font-family: var(--mm-typography-code-font);
+  font-weight: var(--mm-typography-code-weight);
+  line-height: var(--mm-typography-code-line-height);
+  letter-spacing: var(--mm-typography-code-letter-spacing);
+}
+
+/* Line Height Utility Classes */
+.mm-leading-none {
+  line-height: var(--mm-line-height-none);
+}
+
+.mm-leading-tight {
+  line-height: var(--mm-line-height-tight);
+}
+
+.mm-leading-snug {
+  line-height: var(--mm-line-height-snug);
+}
+
+.mm-leading-normal {
+  line-height: var(--mm-line-height-normal);
+}
+
+.mm-leading-relaxed {
+  line-height: var(--mm-line-height-relaxed);
+}
+
+.mm-leading-loose {
+  line-height: var(--mm-line-height-loose);
+}
+
+/* Letter Spacing Utility Classes */
+.mm-tracking-tighter {
+  letter-spacing: var(--mm-letter-spacing-tighter);
+}
+
+.mm-tracking-tight {
+  letter-spacing: var(--mm-letter-spacing-tight);
+}
+
+.mm-tracking-snug {
+  letter-spacing: var(--mm-letter-spacing-snug);
+}
+
+.mm-tracking-normal {
+  letter-spacing: var(--mm-letter-spacing-normal);
+}
+
+.mm-tracking-wide {
+  letter-spacing: var(--mm-letter-spacing-wide);
+}

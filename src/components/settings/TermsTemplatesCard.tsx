@@ -159,14 +159,14 @@ export function TermsTemplatesCard() {
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <CardTitle>Syarat & Ketentuan</CardTitle>
               <CardDescription>
                 Template syarat & ketentuan yang dapat digunakan pada Invoice dan Purchase Order
               </CardDescription>
             </div>
-            <Button onClick={() => handleOpenDialog()}>
+            <Button onClick={() => handleOpenDialog()} className="w-full sm:w-auto">
               <IconPlus className="h-4 w-4 mr-2" />
               Tambah Template
             </Button>
@@ -235,7 +235,7 @@ export function TermsTemplatesCard() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingId ? "Edit Template" : "Tambah Template"}

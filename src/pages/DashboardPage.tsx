@@ -64,13 +64,13 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">Ringkasan bisnis Anda</p>
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl md:text-3xl font-bold">Dashboard</h1>
+        <p className="text-sm md:text-base text-muted-foreground">Ringkasan bisnis Anda</p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stats Grid - Mobile: 1 col, Tablet: 2 cols, Desktop: 4 cols */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
           title="Pendapatan Bulan Ini"
           value={formatCurrency(stats.totalRevenueThisMonth)}
@@ -96,13 +96,13 @@ export function DashboardPage() {
         />
       </div>
 
-      {/* Charts and Lists */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Charts and Lists - Mobile: 1 col, Tablet: 2 cols, Desktop: 3 cols (chart spans 2) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Revenue Chart */}
-        <Card className="lg:col-span-2 p-6">
-          <h2 className="text-lg font-semibold mb-4">Pendapatan 6 Bulan Terakhir</h2>
-          <div className="h-64 w-full" style={{ minWidth: 300, minHeight: 256 }}>
-            <ResponsiveContainer width="100%" height="100%">
+        <Card className="md:col-span-2 p-4 md:p-6">
+          <h2 className="text-base md:text-lg font-semibold mb-4">Pendapatan 6 Bulan Terakhir</h2>
+          <div className="h-56 md:h-64 w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minWidth={300}>
               <BarChart data={revenueChart}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="month" className="text-xs" />
@@ -126,8 +126,8 @@ export function DashboardPage() {
         </Card>
 
         {/* Top Customers */}
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Top 5 Pelanggan</h2>
+        <Card className="p-4 md:p-6 md:col-span-2 lg:col-span-1">
+          <h2 className="text-base md:text-lg font-semibold mb-4">Top 5 Pelanggan</h2>
           {topCustomers.length === 0 ? (
             <p className="text-muted-foreground text-sm">Belum ada data pelanggan</p>
           ) : (
@@ -175,8 +175,8 @@ export function DashboardPage() {
       </div>
 
       {/* Recent Documents */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Dokumen Terbaru</h2>
+      <Card className="p-5 md:p-6">
+        <h2 className="text-lg md:text-xl font-bold mb-5">Dokumen Terbaru</h2>
         {recentDocs.length === 0 ? (
           <p className="text-muted-foreground text-sm">Belum ada dokumen</p>
         ) : (
@@ -184,24 +184,30 @@ export function DashboardPage() {
             {recentDocs.map((doc) => (
               <div
                 key={doc.id}
-                className="flex items-center justify-between py-2 border-b last:border-0"
+                className="flex flex-col gap-3 p-4 rounded-lg border border-border/50 hover:border-primary/30 hover:bg-muted/30 transition-all"
               >
-                <div className="flex items-center gap-4">
-                  <Badge variant="outline">{documentTypeLabels[doc.type]}</Badge>
-                  <div>
-                    <p className="font-medium">{doc.number}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {doc.name} • {formatDate(doc.date)}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-2 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="shrink-0 text-xs">{documentTypeLabels[doc.type]}</Badge>
+                      <span className="font-heading font-bold text-sm md:text-base text-foreground">{doc.number}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground font-medium">
+                      {doc.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(doc.date)}
                     </p>
                   </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="font-semibold">{formatCurrency(doc.amount)}</span>
-                  {doc.status && (
-                    <Badge className={statusColors[doc.status]}>
-                      {statusLabels[doc.status]}
-                    </Badge>
-                  )}
+
+                  <div className="text-right flex flex-col gap-2 items-end">
+                    <p className="font-heading font-bold text-base md:text-lg text-primary">{formatCurrency(doc.amount)}</p>
+                    {doc.status && (
+                      <Badge className={`${statusColors[doc.status]} text-xs`}>
+                        {statusLabels[doc.status]}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

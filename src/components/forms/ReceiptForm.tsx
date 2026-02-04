@@ -231,11 +231,9 @@ export function ReceiptForm({ editId, initialData, onPreview, onSaved }: Receipt
               <Input
                 id="receiptNumber"
                 value={formData.receiptNumber}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, receiptNumber: e.target.value }))
-                }
                 placeholder="KWT-2024-0001"
-                disabled={isEditMode}
+                disabled={true}
+                readOnly={true}
               />
             </div>
             <div className="space-y-2">

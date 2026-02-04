@@ -2,7 +2,8 @@
 
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { internal } from "./_generated/api";
+import nodemailer from "nodemailer";
 
 // Internal action to send invitation email (Node.js runtime)
 export const sendInvitationEmail = internalAction({
@@ -12,18 +13,18 @@ export const sendInvitationEmail = internalAction({
     organizationName: v.string(),
     inviterName: v.string(),
     role: v.string(),
+    organizationId: v.id("organizations"),
   },
   handler: async (ctx, args) => {
-    // Get email settings
-    const emailSettings = await ctx.runQuery(api.emailSettings.getWithPassword);
+    // Get email settings using internal query (no auth context needed)
+    const emailSettings = await ctx.runQuery(internal.emailSettings.getByOrgId, {
+      organizationId: args.organizationId,
+    });
 
     if (!emailSettings || !emailSettings.isConfigured) {
       console.error("Email settings not configured, cannot send invitation email");
       return;
     }
-
-    // Import nodemailer dynamically
-    const nodemailer = await import("nodemailer");
 
     const transporter = nodemailer.createTransport({
       host: emailSettings.smtpHost,

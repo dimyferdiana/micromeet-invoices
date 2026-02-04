@@ -234,9 +234,9 @@ export function PurchaseOrderForm({ editId, initialData, onPreview, onSaved }: P
               <Input
                 id="poNumber"
                 value={formData.poNumber}
-                onChange={(e) => setFormData((prev) => ({ ...prev, poNumber: e.target.value }))}
                 placeholder="PO-2024-0001"
-                disabled={isEditMode}
+                disabled={true}
+                readOnly={true}
               />
             </div>
             <div className="space-y-2">
@@ -340,7 +340,7 @@ export function PurchaseOrderForm({ editId, initialData, onPreview, onSaved }: P
 
           {/* Terms */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <Label htmlFor="terms">Syarat & Ketentuan</Label>
               {termsTemplates && termsTemplates.length > 0 && (
                 <Select
@@ -352,7 +352,7 @@ export function PurchaseOrderForm({ editId, initialData, onPreview, onSaved }: P
                     }
                   }}
                 >
-                  <SelectTrigger className="w-48">
+                  <SelectTrigger className="w-full sm:w-48">
                     <SelectValue placeholder="Pilih template..." />
                   </SelectTrigger>
                   <SelectContent>

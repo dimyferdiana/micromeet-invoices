@@ -50,11 +50,23 @@ export const requestReset = mutation({
       used: false,
     });
 
+    // Find user's organization for email settings
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .first();
+
+    if (!membership) {
+      // No org membership, can't send email but don't reveal this
+      return { success: true };
+    }
+
     // Schedule email sending
     await ctx.scheduler.runAfter(0, internal.passwordResetNode.sendResetEmail, {
       email: args.email,
       token,
       userName: user.name || "User",
+      organizationId: membership.organizationId,
     });
 
     return { success: true };

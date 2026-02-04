@@ -127,38 +127,38 @@ export function CustomersPage() {
           </p>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {customers?.map((customer) => (
             <Card key={customer._id} className="p-4">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg">{customer.name}</h3>
-                  <p className="text-sm text-muted-foreground mt-1 whitespace-pre-line">
+              <div className="flex justify-between items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-heading font-semibold text-base md:text-lg truncate">{customer.name}</h3>
+                  <p className="text-xs md:text-sm text-muted-foreground mt-1 line-clamp-2">
                     {customer.address}
                   </p>
                   <div className="mt-3 space-y-1">
                     {customer.phone && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <IconPhone className="h-4 w-4" />
-                        {customer.phone}
+                      <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
+                        <IconPhone className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{customer.phone}</span>
                       </div>
                     )}
                     {customer.email && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <IconMail className="h-4 w-4" />
-                        {customer.email}
+                      <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
+                        <IconMail className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{customer.email}</span>
                       </div>
                     )}
                   </div>
                 </div>
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(customer)}>
+                <div className="flex gap-1 shrink-0">
+                  <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(customer)} className="touch-target">
                     <IconEdit className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="text-destructive hover:text-destructive"
+                    className="text-destructive hover:text-destructive touch-target"
                     onClick={() => setDeleteId(customer._id)}
                   >
                     <IconTrash className="h-4 w-4" />

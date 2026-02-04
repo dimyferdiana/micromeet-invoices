@@ -144,17 +144,17 @@ export function ReceiptsPage() {
   if (viewMode === "preview" && previewData) {
     return (
       <div className="space-y-6">
-        <div className="flex justify-between items-center print:hidden">
-          <Button variant="ghost" onClick={() => setViewMode(editId ? "edit" : "create")}>
+        <div className="flex flex-col md:flex-row gap-3 md:justify-between md:items-center print:hidden">
+          <Button variant="ghost" onClick={() => setViewMode(editId ? "edit" : "create")} className="w-full md:w-auto">
             <IconArrowLeft className="h-4 w-4 mr-2" />
             Kembali ke Form
           </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setEmailDialogOpen(true)}>
+          <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+            <Button variant="outline" onClick={() => setEmailDialogOpen(true)} className="w-full md:w-auto">
               <IconMail className="h-4 w-4 mr-2" />
-              Kirim Email
+              <span className="md:inline">Kirim Email</span>
             </Button>
-            <Button onClick={handlePrint} disabled={isPrinting}>
+            <Button onClick={handlePrint} disabled={isPrinting} className="w-full md:w-auto">
               {isPrinting ? (
                 <>
                   <IconLoader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -202,20 +202,20 @@ export function ReceiptsPage() {
         createLabel="Buat Kwitansi"
       />
 
-      {/* Search and Filter */}
-      <div className="flex flex-wrap gap-4 mb-6">
+      {/* Search and Filter - Mobile Optimized */}
+      <div className="flex flex-col gap-3 mb-6">
         <SearchInput
           value={searchTerm}
           onChange={setSearchTerm}
           placeholder="Cari nomor kwitansi, pembayar, atau keperluan..."
-          className="flex-1 min-w-50"
+          className="w-full"
         />
         <DateRangeFilter
           startDate={startDate}
           endDate={endDate}
           onStartDateChange={setStartDate}
           onEndDateChange={setEndDate}
-          className="w-auto"
+          className="w-full"
         />
       </div>
 
@@ -228,62 +228,75 @@ export function ReceiptsPage() {
           </p>
         </Card>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 md:space-y-4">
           {receipts.map((receipt) => (
-            <Card key={receipt._id} className="p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <span className="font-semibold">{receipt.receiptNumber}</span>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {receipt.receivedFrom} • {formatDate(receipt.date)}
-                  </p>
+            <Card key={receipt._id} className="p-5 md:p-6 hover:shadow-lg transition-all duration-200 active:scale-[0.99]">
+              <div className="flex flex-col gap-4">
+                {/* Top section - Document number and amount */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-2 flex-1 min-w-0">
+                    <span className="font-heading font-bold text-base md:text-lg text-foreground">{receipt.receiptNumber}</span>
+                    <p className="text-sm md:text-base text-muted-foreground font-medium">
+                      {receipt.receivedFrom}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(receipt.date)} • {receipt.paymentFor}
+                    </p>
+                  </div>
+
+                  {/* Amount - prominent on the right */}
+                  <div className="text-right">
+                    <p className="font-heading text-lg md:text-xl font-bold text-primary">
+                      {formatCurrency(receipt.amount)}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <span className="font-semibold text-lg">
-                    {formatCurrency(receipt.amount)}
-                  </span>
-
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(receipt._id)}
-                      title="Edit kwitansi"
-                    >
-                      <IconEdit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setPreviewData({
-                          receiptNumber: receipt.receiptNumber,
-                          date: receipt.date,
-                          company: receipt.company,
-                          mode: receipt.mode || "receive",
-                          receivedFrom: receipt.receivedFrom,
-                          amount: receipt.amount,
-                          amountInWords: receipt.amountInWords,
-                          paymentMethod: receipt.paymentMethod,
-                          paymentFor: receipt.paymentFor,
-                          notes: receipt.notes,
-                        })
-                        setPreviewId(receipt._id)
-                        setViewMode("preview")
-                      }}
-                    >
-                      <IconEye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => setDeleteId(receipt._id)}
-                    >
-                      <IconTrash className="h-4 w-4" />
-                    </Button>
-                  </div>
+                {/* Bottom section - Action buttons */}
+                <div className="flex gap-2 pt-2 border-t border-border/50">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setPreviewData({
+                        receiptNumber: receipt.receiptNumber,
+                        date: receipt.date,
+                        company: receipt.company,
+                        mode: receipt.mode || "receive",
+                        receivedFrom: receipt.receivedFrom,
+                        amount: receipt.amount,
+                        amountInWords: receipt.amountInWords,
+                        paymentMethod: receipt.paymentMethod,
+                        paymentFor: receipt.paymentFor,
+                        notes: receipt.notes,
+                      })
+                      setPreviewId(receipt._id)
+                      setViewMode("preview")
+                    }}
+                    className="flex-1 h-11 md:h-9 md:flex-none font-medium"
+                  >
+                    <IconEye className="h-4 w-4 mr-2" />
+                    <span className="md:inline">Lihat</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEdit(receipt._id)}
+                    className="flex-1 h-11 md:h-9 md:flex-none font-medium"
+                    title="Edit kwitansi"
+                  >
+                    <IconEdit className="h-4 w-4 mr-2" />
+                    <span className="md:inline">Edit</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 h-11 md:h-9 md:flex-none text-destructive hover:bg-destructive hover:text-destructive-foreground border-destructive/30 font-medium"
+                    onClick={() => setDeleteId(receipt._id)}
+                  >
+                    <IconTrash className="h-4 w-4 mr-2" />
+                    <span className="md:inline">Hapus</span>
+                  </Button>
                 </div>
               </div>
             </Card>

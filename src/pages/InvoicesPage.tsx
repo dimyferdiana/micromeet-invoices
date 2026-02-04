@@ -165,17 +165,17 @@ export function InvoicesPage() {
   if (viewMode === "preview" && previewData) {
     return (
       <div className="space-y-6">
-        <div className="flex justify-between items-center print:hidden">
-          <Button variant="ghost" onClick={() => setViewMode(editId ? "edit" : "create")}>
+        <div className="flex flex-col md:flex-row gap-3 md:justify-between md:items-center print:hidden">
+          <Button variant="ghost" onClick={() => setViewMode(editId ? "edit" : "create")} className="w-full md:w-auto">
             <IconArrowLeft className="h-4 w-4 mr-2" />
             Kembali ke Form
           </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setEmailDialogOpen(true)}>
+          <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+            <Button variant="outline" onClick={() => setEmailDialogOpen(true)} className="w-full md:w-auto">
               <IconMail className="h-4 w-4 mr-2" />
-              Kirim Email
+              <span className="md:inline">Kirim Email</span>
             </Button>
-            <Button onClick={handlePrint} disabled={isPrinting}>
+            <Button onClick={handlePrint} disabled={isPrinting} className="w-full md:w-auto">
               {isPrinting ? (
                 <>
                   <IconLoader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -231,37 +231,39 @@ export function InvoicesPage() {
         createLabel="Buat Invoice"
       />
 
-      {/* Search and Filter */}
-      <div className="flex flex-wrap gap-4 mb-6">
+      {/* Search and Filter - Mobile Optimized */}
+      <div className="flex flex-col gap-3 mb-6">
         <SearchInput
           value={searchTerm}
           onChange={setSearchTerm}
           placeholder="Cari nomor invoice atau pelanggan..."
-          className="flex-1 min-w-50"
+          className="w-full"
         />
-        <Select
-          value={statusFilter}
-          onValueChange={(value) => setStatusFilter(value as InvoiceStatus | "all")}
-        >
-          <SelectTrigger className="w-45">
-            <SelectValue placeholder="Filter status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua Status</SelectItem>
-            <SelectItem value="draft">{statusLabels.draft}</SelectItem>
-            <SelectItem value="sent">{statusLabels.sent}</SelectItem>
-            <SelectItem value="paid">{statusLabels.paid}</SelectItem>
-            <SelectItem value="overdue">{statusLabels.overdue}</SelectItem>
-            <SelectItem value="cancelled">{statusLabels.cancelled}</SelectItem>
-          </SelectContent>
-        </Select>
-        <DateRangeFilter
-          startDate={startDate}
-          endDate={endDate}
-          onStartDateChange={setStartDate}
-          onEndDateChange={setEndDate}
-          className="w-auto"
-        />
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value as InvoiceStatus | "all")}
+          >
+            <SelectTrigger className="w-full sm:flex-1">
+              <SelectValue placeholder="Filter status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Status</SelectItem>
+              <SelectItem value="draft">{statusLabels.draft}</SelectItem>
+              <SelectItem value="sent">{statusLabels.sent}</SelectItem>
+              <SelectItem value="paid">{statusLabels.paid}</SelectItem>
+              <SelectItem value="overdue">{statusLabels.overdue}</SelectItem>
+              <SelectItem value="cancelled">{statusLabels.cancelled}</SelectItem>
+            </SelectContent>
+          </Select>
+          <DateRangeFilter
+            startDate={startDate}
+            endDate={endDate}
+            onStartDateChange={setStartDate}
+            onEndDateChange={setEndDate}
+            className="w-full sm:flex-1"
+          />
+        </div>
       </div>
 
       {!invoices || invoices.length === 0 ? (
@@ -273,73 +275,86 @@ export function InvoicesPage() {
           </p>
         </Card>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 md:space-y-4">
           {invoices.map((invoice) => (
-            <Card key={invoice._id} className="p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3">
-                    <span className="font-semibold">{invoice.invoiceNumber}</span>
-                    <StatusDropdown
-                      documentType="invoice"
-                      documentId={invoice._id}
-                      currentStatus={invoice.status}
-                      disabled={invoice.status === "paid"}
-                    />
+            <Card key={invoice._id} className="p-5 md:p-6 hover:shadow-lg transition-all duration-200 active:scale-[0.99]">
+              <div className="flex flex-col gap-4">
+                {/* Top section - Document number, status, and amount */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-2 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-heading font-bold text-base md:text-lg text-foreground">{invoice.invoiceNumber}</span>
+                      <StatusDropdown
+                        documentType="invoice"
+                        documentId={invoice._id}
+                        currentStatus={invoice.status}
+                        disabled={invoice.status === "paid"}
+                      />
+                    </div>
+                    <p className="text-sm md:text-base text-muted-foreground font-medium">
+                      {invoice.customer.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(invoice.date)} • Jatuh tempo: {formatDate(invoice.dueDate)}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {invoice.customer.name} • {formatDate(invoice.date)}
-                  </p>
+
+                  {/* Amount - prominent on the right */}
+                  <div className="text-right">
+                    <p className="font-heading text-lg md:text-xl font-bold text-primary">
+                      {formatCurrency(invoice.total)}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <span className="font-semibold text-lg">
-                    {formatCurrency(invoice.total)}
-                  </span>
-
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(invoice._id)}
-                      disabled={invoice.status === "paid"}
-                      title={invoice.status === "paid" ? "Invoice lunas tidak dapat diedit" : "Edit invoice"}
-                    >
-                      <IconEdit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setPreviewData({
-                          invoiceNumber: invoice.invoiceNumber,
-                          date: invoice.date,
-                          dueDate: invoice.dueDate,
-                          company: invoice.company,
-                          customer: invoice.customer,
-                          items: invoice.items,
-                          subtotal: invoice.subtotal,
-                          taxRate: invoice.taxRate,
-                          taxAmount: invoice.taxAmount,
-                          total: invoice.total,
-                          notes: invoice.notes,
-                          status: invoice.status,
-                        })
-                        setPreviewId(invoice._id)
-                        setViewMode("preview")
-                      }}
-                    >
-                      <IconEye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => setDeleteId(invoice._id)}
-                    >
-                      <IconTrash className="h-4 w-4" />
-                    </Button>
-                  </div>
+                {/* Bottom section - Action buttons */}
+                <div className="flex gap-2 pt-2 border-t border-border/50">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setPreviewData({
+                        invoiceNumber: invoice.invoiceNumber,
+                        date: invoice.date,
+                        dueDate: invoice.dueDate,
+                        company: invoice.company,
+                        customer: invoice.customer,
+                        items: invoice.items,
+                        subtotal: invoice.subtotal,
+                        taxRate: invoice.taxRate,
+                        taxAmount: invoice.taxAmount,
+                        total: invoice.total,
+                        notes: invoice.notes,
+                        status: invoice.status,
+                      })
+                      setPreviewId(invoice._id)
+                      setViewMode("preview")
+                    }}
+                    className="flex-1 h-11 md:h-9 md:flex-none font-medium"
+                  >
+                    <IconEye className="h-4 w-4 mr-2" />
+                    <span className="md:inline">Lihat</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEdit(invoice._id)}
+                    disabled={invoice.status === "paid"}
+                    className="flex-1 h-11 md:h-9 md:flex-none font-medium disabled:opacity-50"
+                    title={invoice.status === "paid" ? "Invoice lunas tidak dapat diedit" : "Edit invoice"}
+                  >
+                    <IconEdit className="h-4 w-4 mr-2" />
+                    <span className="md:inline">Edit</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 h-11 md:h-9 md:flex-none text-destructive hover:bg-destructive hover:text-destructive-foreground border-destructive/30 font-medium"
+                    onClick={() => setDeleteId(invoice._id)}
+                  >
+                    <IconTrash className="h-4 w-4 mr-2" />
+                    <span className="md:inline">Hapus</span>
+                  </Button>
                 </div>
               </div>
             </Card>

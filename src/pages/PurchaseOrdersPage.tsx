@@ -155,17 +155,17 @@ export function PurchaseOrdersPage() {
   if (viewMode === "preview" && previewData) {
     return (
       <div className="space-y-6">
-        <div className="flex justify-between items-center print:hidden">
-          <Button variant="ghost" onClick={() => setViewMode(editId ? "edit" : "create")}>
+        <div className="flex flex-col md:flex-row gap-3 md:justify-between md:items-center print:hidden">
+          <Button variant="ghost" onClick={() => setViewMode(editId ? "edit" : "create")} className="w-full md:w-auto">
             <IconArrowLeft className="h-4 w-4 mr-2" />
             Kembali ke Form
           </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setEmailDialogOpen(true)}>
+          <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+            <Button variant="outline" onClick={() => setEmailDialogOpen(true)} className="w-full md:w-auto">
               <IconMail className="h-4 w-4 mr-2" />
-              Kirim Email
+              <span className="md:inline">Kirim Email</span>
             </Button>
-            <Button onClick={handlePrint} disabled={isPrinting}>
+            <Button onClick={handlePrint} disabled={isPrinting} className="w-full md:w-auto">
               {isPrinting ? (
                 <>
                   <IconLoader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -214,37 +214,39 @@ export function PurchaseOrdersPage() {
         createLabel="Buat PO"
       />
 
-      {/* Search and Filter */}
-      <div className="flex flex-wrap gap-4 mb-6">
+      {/* Search and Filter - Mobile Optimized */}
+      <div className="flex flex-col gap-3 mb-6">
         <SearchInput
           value={searchTerm}
           onChange={setSearchTerm}
           placeholder="Cari nomor PO atau vendor..."
-          className="flex-1 min-w-50"
+          className="w-full"
         />
-        <Select
-          value={statusFilter}
-          onValueChange={(value) => setStatusFilter(value as POStatus | "all")}
-        >
-          <SelectTrigger className="w-45">
-            <SelectValue placeholder="Filter status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua Status</SelectItem>
-            <SelectItem value="draft">{statusLabels.draft}</SelectItem>
-            <SelectItem value="sent">{statusLabels.sent}</SelectItem>
-            <SelectItem value="confirmed">{statusLabels.confirmed}</SelectItem>
-            <SelectItem value="received">{statusLabels.received}</SelectItem>
-            <SelectItem value="cancelled">{statusLabels.cancelled}</SelectItem>
-          </SelectContent>
-        </Select>
-        <DateRangeFilter
-          startDate={startDate}
-          endDate={endDate}
-          onStartDateChange={setStartDate}
-          onEndDateChange={setEndDate}
-          className="w-auto"
-        />
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value as POStatus | "all")}
+          >
+            <SelectTrigger className="w-full sm:flex-1">
+              <SelectValue placeholder="Filter status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Status</SelectItem>
+              <SelectItem value="draft">{statusLabels.draft}</SelectItem>
+              <SelectItem value="sent">{statusLabels.sent}</SelectItem>
+              <SelectItem value="confirmed">{statusLabels.confirmed}</SelectItem>
+              <SelectItem value="received">{statusLabels.received}</SelectItem>
+              <SelectItem value="cancelled">{statusLabels.cancelled}</SelectItem>
+            </SelectContent>
+          </Select>
+          <DateRangeFilter
+            startDate={startDate}
+            endDate={endDate}
+            onStartDateChange={setStartDate}
+            onEndDateChange={setEndDate}
+            className="w-full sm:flex-1"
+          />
+        </div>
       </div>
 
       {!purchaseOrders || purchaseOrders.length === 0 ? (
@@ -256,73 +258,89 @@ export function PurchaseOrdersPage() {
           </p>
         </Card>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 md:space-y-4">
           {purchaseOrders.map((po) => (
-            <Card key={po._id} className="p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3">
-                    <span className="font-semibold">{po.poNumber}</span>
-                    <StatusDropdown
-                      documentType="purchaseOrder"
-                      documentId={po._id}
-                      currentStatus={po.status}
-                      disabled={po.status === "received"}
-                    />
+            <Card key={po._id} className="p-5 md:p-6 hover:shadow-lg transition-all duration-200 active:scale-[0.99]">
+              <div className="flex flex-col gap-4">
+                {/* Top section - Document number, status, and amount */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-2 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-heading font-bold text-base md:text-lg text-foreground">{po.poNumber}</span>
+                      <StatusDropdown
+                        documentType="purchaseOrder"
+                        documentId={po._id}
+                        currentStatus={po.status}
+                        disabled={po.status === "received"}
+                      />
+                    </div>
+                    <p className="text-sm md:text-base text-muted-foreground font-medium">
+                      {po.vendor.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(po.date)}
+                      {po.expectedDeliveryDate && ` • Pengiriman: ${formatDate(po.expectedDeliveryDate)}`}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {po.vendor.name} • {formatDate(po.date)}
-                  </p>
+
+                  {/* Amount - prominent on the right */}
+                  <div className="text-right">
+                    <p className="font-heading text-lg md:text-xl font-bold text-primary">
+                      {formatCurrency(po.total)}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <span className="font-semibold text-lg">{formatCurrency(po.total)}</span>
-
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(po._id)}
-                      disabled={po.status === "received"}
-                      title={po.status === "received" ? "PO sudah diterima tidak dapat diedit" : "Edit PO"}
-                    >
-                      <IconEdit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setPreviewData({
-                          poNumber: po.poNumber,
-                          date: po.date,
-                          expectedDeliveryDate: po.expectedDeliveryDate,
-                          company: po.company,
-                          vendor: po.vendor,
-                          items: po.items,
-                          subtotal: po.subtotal,
-                          taxRate: po.taxRate,
-                          taxAmount: po.taxAmount,
-                          total: po.total,
-                          shippingAddress: po.shippingAddress,
-                          notes: po.notes,
-                          terms: po.terms,
-                          status: po.status,
-                        })
-                        setPreviewId(po._id)
-                        setViewMode("preview")
-                      }}
-                    >
-                      <IconEye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => setDeleteId(po._id)}
-                    >
-                      <IconTrash className="h-4 w-4" />
-                    </Button>
-                  </div>
+                {/* Bottom section - Action buttons */}
+                <div className="flex gap-2 pt-2 border-t border-border/50">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setPreviewData({
+                        poNumber: po.poNumber,
+                        date: po.date,
+                        expectedDeliveryDate: po.expectedDeliveryDate,
+                        company: po.company,
+                        vendor: po.vendor,
+                        items: po.items,
+                        subtotal: po.subtotal,
+                        taxRate: po.taxRate,
+                        taxAmount: po.taxAmount,
+                        total: po.total,
+                        shippingAddress: po.shippingAddress,
+                        notes: po.notes,
+                        terms: po.terms,
+                        status: po.status,
+                      })
+                      setPreviewId(po._id)
+                      setViewMode("preview")
+                    }}
+                    className="flex-1 h-11 md:h-9 md:flex-none font-medium"
+                  >
+                    <IconEye className="h-4 w-4 mr-2" />
+                    <span className="md:inline">Lihat</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEdit(po._id)}
+                    disabled={po.status === "received"}
+                    className="flex-1 h-11 md:h-9 md:flex-none font-medium disabled:opacity-50"
+                    title={po.status === "received" ? "PO sudah diterima tidak dapat diedit" : "Edit PO"}
+                  >
+                    <IconEdit className="h-4 w-4 mr-2" />
+                    <span className="md:inline">Edit</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 h-11 md:h-9 md:flex-none text-destructive hover:bg-destructive hover:text-destructive-foreground border-destructive/30 font-medium"
+                    onClick={() => setDeleteId(po._id)}
+                  >
+                    <IconTrash className="h-4 w-4 mr-2" />
+                    <span className="md:inline">Hapus</span>
+                  </Button>
                 </div>
               </div>
             </Card>

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { useConvexAuth, useMutation } from "convex/react"
 import { api } from "../convex/_generated/api"
 import { Sidebar, type ActiveView } from "@/components/layout/Sidebar"
+import { BottomTabBar } from "@/components/layout/BottomTabBar"
 import { Toaster } from "@/components/ui/sonner"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { InvoicesPage } from "@/pages/InvoicesPage"
@@ -189,15 +190,20 @@ export function App() {
 
   return (
     <div className="flex h-screen bg-background">
-      {/* Sidebar - hidden when printing */}
+      {/* Sidebar - hidden on mobile, visible on tablet/desktop, hidden when printing */}
       <div className="print:hidden">
         <Sidebar activeView={activeView} onViewChange={handleViewChange} user={user} onNavigateToProfile={handleNavigateToProfile} />
       </div>
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
-        <div className="p-8">{renderContent()}</div>
+        <div className="p-4 pb-20 md:p-6 lg:p-8">{renderContent()}</div>
       </main>
+
+      {/* Bottom Tab Bar - visible on mobile only, hidden on tablet/desktop and when printing */}
+      <div className="md:hidden">
+        <BottomTabBar activeView={activeView} onViewChange={handleViewChange} user={user} onNavigateToProfile={handleNavigateToProfile} />
+      </div>
 
       <Toaster position="top-right" richColors />
     </div>

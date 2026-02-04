@@ -1,4 +1,4 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthContext, getAuthContextOptional, canManageOrganization } from "./authHelpers";
 
@@ -35,6 +35,19 @@ export const getWithPassword = query({
     return await ctx.db
       .query("emailSettings")
       .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .first();
+  },
+});
+
+// Get email settings by organization ID (for internal/scheduled actions without auth context)
+export const getByOrgId = internalQuery({
+  args: {
+    organizationId: v.id("organizations"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("emailSettings")
+      .withIndex("by_org", (q) => q.eq("organizationId", args.organizationId))
       .first();
   },
 });

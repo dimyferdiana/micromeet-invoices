@@ -42,13 +42,15 @@ export function LineItemsEditor({ items, onChange }: LineItemsEditorProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <Label className="text-base font-semibold">Item</Label>
-        <Button type="button" variant="outline" size="sm" onClick={addItem}>
+        <Button type="button" variant="outline" size="sm" onClick={addItem} className="touch-target">
           <IconPlus className="h-4 w-4 mr-1" />
-          Tambah Item
+          <span className="hidden sm:inline">Tambah Item</span>
+          <span className="sm:hidden">Tambah</span>
         </Button>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
+      {/* Desktop Table View */}
+      <div className="hidden md:block border rounded-lg overflow-hidden">
         <table className="w-full">
           <thead className="bg-muted/50">
             <tr>
@@ -114,6 +116,69 @@ export function LineItemsEditor({ items, onChange }: LineItemsEditorProps) {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3">
+        {items.length === 0 ? (
+          <div className="border rounded-lg p-8 text-center text-muted-foreground">
+            Belum ada item. Klik "Tambah" untuk menambahkan.
+          </div>
+        ) : (
+          items.map((item, index) => (
+            <div key={index} className="border rounded-lg p-4 space-y-3">
+              <div className="flex justify-between items-start gap-2">
+                <span className="text-sm font-medium text-muted-foreground">Item #{index + 1}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeItem(index)}
+                  className="h-8 w-8 text-destructive hover:text-destructive touch-target shrink-0"
+                >
+                  <IconTrash className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs">Deskripsi</Label>
+                <Input
+                  placeholder="Deskripsi item..."
+                  value={item.description}
+                  onChange={(e) => updateItem(index, "description", e.target.value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-xs">Qty</Label>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    value={item.quantity}
+                    onChange={(e) => updateItem(index, "quantity", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">Harga Satuan</Label>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    value={item.unitPrice}
+                    onChange={(e) => updateItem(index, "unitPrice", e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 border-t flex justify-between items-center">
+                <span className="text-sm font-medium text-muted-foreground">Jumlah</span>
+                <span className="text-base font-semibold">{formatCurrency(item.amount)}</span>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   )

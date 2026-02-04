@@ -117,6 +117,7 @@ export const create = mutation({
       organizationName: org?.name || "Organisasi",
       inviterName: inviter?.name || "Admin",
       role: args.role,
+      organizationId: auth.organizationId,
     });
 
     return invitationId;
@@ -182,6 +183,7 @@ export const resend = mutation({
       organizationName: org?.name || "Organisasi",
       inviterName: inviter?.name || "Admin",
       role: invitation.role,
+      organizationId: auth.organizationId,
     });
   },
 });

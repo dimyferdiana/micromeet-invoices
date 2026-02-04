@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import logo from "@/assets/logo.png"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,14 +63,10 @@ export function Sidebar({ activeView, onViewChange, user, onNavigateToProfile }:
   }
 
   return (
-    <aside className="w-64 bg-sidebar border-r border-sidebar-border h-screen flex flex-col">
+    <aside className="w-64 bg-sidebar border-r border-sidebar-border h-screen hidden md:flex md:flex-col">
       {/* Logo */}
       <div className="p-6 border-b border-sidebar-border">
-        <h1 className="text-xl font-bold text-sidebar-foreground flex items-center gap-2">
-          <IconFileInvoice className="h-6 w-6 text-primary" />
-          Micromeet
-        </h1>
-        <p className="text-sm text-sidebar-foreground/60 mt-1">Invoice Generator</p>
+        <img src={logo} alt="Micromeet" className="h-8 object-contain" />
       </div>
 
       {/* Navigation */}
