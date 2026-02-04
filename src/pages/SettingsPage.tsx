@@ -12,6 +12,11 @@ import { EmailSettingsCard } from "@/components/settings/EmailSettingsCard"
 import { EmailTemplateCard } from "@/components/settings/EmailTemplateCard"
 import { ReminderSettingsCard } from "@/components/settings/ReminderSettingsCard"
 import { WatermarkSettingsCard } from "@/components/settings/WatermarkSettingsCard"
+import { TermsTemplatesCard } from "@/components/settings/TermsTemplatesCard"
+import { ProfileSettingsCard } from "@/components/settings/ProfileSettingsCard"
+import { ChangePasswordCard } from "@/components/settings/ChangePasswordCard"
+import { OrganizationSettingsCard } from "@/components/settings/OrganizationSettingsCard"
+import { TeamManagementCard } from "@/components/settings/TeamManagementCard"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,6 +47,9 @@ import {
   IconCreditCard,
   IconPhoto,
   IconMail,
+  IconScale,
+  IconUser,
+  IconUsersGroup,
 } from "@tabler/icons-react"
 import type { Id } from "../../convex/_generated/dataModel"
 import { toast } from "sonner"
@@ -82,9 +90,14 @@ const defaultBankAccount: BankAccountFormData = {
   isDefault: false,
 }
 
-export function SettingsPage() {
+interface SettingsPageProps {
+  defaultTab?: string
+}
+
+export function SettingsPage({ defaultTab }: SettingsPageProps) {
   const companySettings = useQuery(api.companySettings.getWithUrls)
   const upsertSettings = useMutation(api.companySettings.upsert)
+  const userProfile = useQuery(api.users.getUserProfile)
 
   const bankAccounts = useQuery(api.bankAccounts.list)
   const createBankAccount = useMutation(api.bankAccounts.create)
@@ -99,7 +112,7 @@ export function SettingsPage() {
   const updateCompanyStamp = useMutation(api.files.updateCompanyStamp)
   const removeCompanyStamp = useMutation(api.files.removeCompanyStamp)
 
-  const [activeTab, setActiveTab] = useState("company")
+  const [activeTab, setActiveTab] = useState(defaultTab || "company")
   const [formData, setFormData] = useState<CompanyFormData>(defaultCompany)
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -109,6 +122,13 @@ export function SettingsPage() {
   const [bankFormData, setBankFormData] = useState<BankAccountFormData>(defaultBankAccount)
   const [editingBankId, setEditingBankId] = useState<string | null>(null)
   const [deleteBankId, setDeleteBankId] = useState<string | null>(null)
+
+  // Sync active tab when defaultTab prop changes
+  useEffect(() => {
+    if (defaultTab) {
+      setActiveTab(defaultTab)
+    }
+  }, [defaultTab])
 
   // Load existing settings
   useEffect(() => {
@@ -256,7 +276,15 @@ export function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-flex">
+          <TabsTrigger value="profile" className="gap-2">
+            <IconUser className="h-4 w-4" />
+            <span className="hidden sm:inline">Profil</span>
+          </TabsTrigger>
+          <TabsTrigger value="team" className="gap-2">
+            <IconUsersGroup className="h-4 w-4" />
+            <span className="hidden sm:inline">Tim</span>
+          </TabsTrigger>
           <TabsTrigger value="company" className="gap-2">
             <IconBuilding className="h-4 w-4" />
             <span className="hidden sm:inline">Perusahaan</span>
@@ -269,11 +297,32 @@ export function SettingsPage() {
             <IconPhoto className="h-4 w-4" />
             <span className="hidden sm:inline">Branding</span>
           </TabsTrigger>
+          <TabsTrigger value="terms" className="gap-2">
+            <IconScale className="h-4 w-4" />
+            <span className="hidden sm:inline">Syarat & Ketentuan</span>
+          </TabsTrigger>
           <TabsTrigger value="email" className="gap-2">
             <IconMail className="h-4 w-4" />
             <span className="hidden sm:inline">Email</span>
           </TabsTrigger>
         </TabsList>
+
+        {/* Profile Tab */}
+        <TabsContent value="profile">
+          <div className="space-y-6">
+            <ProfileSettingsCard profile={userProfile ?? null} />
+            <ChangePasswordCard hasPasswordAuth={userProfile?.hasPasswordAuth ?? false} />
+            <OrganizationSettingsCard
+              organization={userProfile?.organization ?? null}
+              role={userProfile?.role ?? null}
+            />
+          </div>
+        </TabsContent>
+
+        {/* Team Tab */}
+        <TabsContent value="team">
+          <TeamManagementCard />
+        </TabsContent>
 
         {/* Company Info Tab */}
         <TabsContent value="company">
@@ -516,6 +565,11 @@ export function SettingsPage() {
             {/* Watermark Section */}
             <WatermarkSettingsCard />
           </div>
+        </TabsContent>
+
+        {/* Terms & Conditions Tab */}
+        <TabsContent value="terms">
+          <TermsTemplatesCard />
         </TabsContent>
 
         {/* Email Tab */}

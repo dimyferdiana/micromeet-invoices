@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthContext, getAuthContextOptional } from "./authHelpers";
 
 export const getNextNumber = query({
   args: {
@@ -10,11 +11,28 @@ export const getNextNumber = query({
     ),
   },
   handler: async (ctx, args) => {
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) {
+      const prefixes = {
+        invoice: "INV",
+        purchaseOrder: "PO",
+        receipt: "KWT",
+      };
+      const currentYear = new Date().getFullYear();
+      return {
+        number: `${prefixes[args.type]}-${currentYear}-0001`,
+        nextSequence: 1,
+      };
+    }
+
     const currentYear = new Date().getFullYear();
     const counter = await ctx.db
       .query("documentCounters")
-      .withIndex("by_type_year", (q) =>
-        q.eq("type", args.type).eq("year", currentYear)
+      .withIndex("by_org_type_year", (q) =>
+        q
+          .eq("organizationId", auth.organizationId)
+          .eq("type", args.type)
+          .eq("year", currentYear)
       )
       .first();
 
@@ -43,11 +61,16 @@ export const incrementCounter = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
+
     const currentYear = new Date().getFullYear();
     const counter = await ctx.db
       .query("documentCounters")
-      .withIndex("by_type_year", (q) =>
-        q.eq("type", args.type).eq("year", currentYear)
+      .withIndex("by_org_type_year", (q) =>
+        q
+          .eq("organizationId", auth.organizationId)
+          .eq("type", args.type)
+          .eq("year", currentYear)
       )
       .first();
 
@@ -68,6 +91,7 @@ export const incrementCounter = mutation({
         prefix: prefixes[args.type],
         lastNumber: 1,
         year: currentYear,
+        organizationId: auth.organizationId,
       });
       return 1;
     }
@@ -84,11 +108,16 @@ export const updatePrefix = mutation({
     prefix: v.string(),
   },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
+
     const currentYear = new Date().getFullYear();
     const counter = await ctx.db
       .query("documentCounters")
-      .withIndex("by_type_year", (q) =>
-        q.eq("type", args.type).eq("year", currentYear)
+      .withIndex("by_org_type_year", (q) =>
+        q
+          .eq("organizationId", auth.organizationId)
+          .eq("type", args.type)
+          .eq("year", currentYear)
       )
       .first();
 
@@ -100,6 +129,7 @@ export const updatePrefix = mutation({
         prefix: args.prefix,
         lastNumber: 0,
         year: currentYear,
+        organizationId: auth.organizationId,
       });
     }
   },

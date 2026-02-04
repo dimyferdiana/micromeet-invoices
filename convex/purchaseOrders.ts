@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthContext, getAuthContextOptional, canEditDocument, canDeleteDocument } from "./authHelpers";
 
 const lineItemValidator = v.object({
   description: v.string(),
@@ -39,17 +40,19 @@ export const list = query({
     includeDeleted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    let purchaseOrders;
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return [];
+
+    let purchaseOrders = await ctx.db
+      .query("purchaseOrders")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .order("desc")
+      .collect();
+
     if (args.status) {
-      purchaseOrders = await ctx.db
-        .query("purchaseOrders")
-        .withIndex("by_status", (q) => q.eq("status", args.status!))
-        .order("desc")
-        .collect();
-    } else {
-      purchaseOrders = await ctx.db.query("purchaseOrders").order("desc").collect();
+      purchaseOrders = purchaseOrders.filter((po) => po.status === args.status);
     }
-    // Filter out soft-deleted documents unless includeDeleted is true
+
     if (!args.includeDeleted) {
       purchaseOrders = purchaseOrders.filter((po) => !po.deletedAt);
     }
@@ -60,7 +63,14 @@ export const list = query({
 export const get = query({
   args: { id: v.id("purchaseOrders") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return null;
+
+    const po = await ctx.db.get(args.id);
+    if (!po || po.organizationId !== auth.organizationId) {
+      return null;
+    }
+    return po;
   },
 });
 
@@ -88,9 +98,12 @@ export const create = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
     const now = Date.now();
     return await ctx.db.insert("purchaseOrders", {
       ...args,
+      organizationId: auth.organizationId,
+      createdBy: auth.userId,
       createdAt: now,
       updatedAt: now,
     });
@@ -124,11 +137,22 @@ export const update = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
     const { id, ...updates } = args;
     const existing = await ctx.db.get(id);
+
     if (!existing) {
       throw new Error("Purchase Order not found");
     }
+
+    if (existing.organizationId !== auth.organizationId) {
+      throw new Error("Unauthorized: Purchase Order belongs to a different organization");
+    }
+
+    if (!canEditDocument(auth, existing.createdBy)) {
+      throw new Error("Unauthorized: You can only edit purchase orders you created");
+    }
+
     await ctx.db.patch(id, {
       ...updates,
       updatedAt: Date.now(),
@@ -137,14 +161,24 @@ export const update = mutation({
   },
 });
 
-// Soft delete - sets deletedAt timestamp instead of removing
 export const remove = mutation({
   args: { id: v.id("purchaseOrders") },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
     const existing = await ctx.db.get(args.id);
+
     if (!existing) {
       throw new Error("Purchase Order not found");
     }
+
+    if (existing.organizationId !== auth.organizationId) {
+      throw new Error("Unauthorized: Purchase Order belongs to a different organization");
+    }
+
+    if (!canDeleteDocument(auth, existing.createdBy)) {
+      throw new Error("Unauthorized: You can only delete purchase orders you created");
+    }
+
     await ctx.db.patch(args.id, {
       deletedAt: Date.now(),
       updatedAt: Date.now(),
@@ -152,17 +186,24 @@ export const remove = mutation({
   },
 });
 
-// Restore a soft-deleted purchase order
 export const restore = mutation({
   args: { id: v.id("purchaseOrders") },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
     const existing = await ctx.db.get(args.id);
+
     if (!existing) {
       throw new Error("Purchase Order not found");
     }
+
+    if (existing.organizationId !== auth.organizationId) {
+      throw new Error("Unauthorized: Purchase Order belongs to a different organization");
+    }
+
     if (!existing.deletedAt) {
       throw new Error("Purchase Order is not deleted");
     }
+
     await ctx.db.patch(args.id, {
       deletedAt: undefined,
       updatedAt: Date.now(),
@@ -170,23 +211,39 @@ export const restore = mutation({
   },
 });
 
-// Permanently delete a purchase order (hard delete)
 export const permanentDelete = mutation({
   args: { id: v.id("purchaseOrders") },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
     const existing = await ctx.db.get(args.id);
+
     if (!existing) {
       throw new Error("Purchase Order not found");
     }
+
+    if (existing.organizationId !== auth.organizationId) {
+      throw new Error("Unauthorized: Purchase Order belongs to a different organization");
+    }
+
+    if (!canDeleteDocument(auth, existing.createdBy)) {
+      throw new Error("Unauthorized: You can only delete purchase orders you created");
+    }
+
     await ctx.db.delete(args.id);
   },
 });
 
-// List deleted purchase orders
 export const listDeleted = query({
   args: {},
   handler: async (ctx) => {
-    const purchaseOrders = await ctx.db.query("purchaseOrders").order("desc").collect();
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return [];
+
+    const purchaseOrders = await ctx.db
+      .query("purchaseOrders")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .order("desc")
+      .collect();
     return purchaseOrders.filter((po) => po.deletedAt);
   },
 });
@@ -203,6 +260,21 @@ export const updateStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
+    const existing = await ctx.db.get(args.id);
+
+    if (!existing) {
+      throw new Error("Purchase Order not found");
+    }
+
+    if (existing.organizationId !== auth.organizationId) {
+      throw new Error("Unauthorized: Purchase Order belongs to a different organization");
+    }
+
+    if (!canEditDocument(auth, existing.createdBy)) {
+      throw new Error("Unauthorized: You can only update purchase orders you created");
+    }
+
     await ctx.db.patch(args.id, {
       status: args.status,
       updatedAt: Date.now(),
@@ -226,19 +298,19 @@ export const search = query({
     endDate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    let purchaseOrders;
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return [];
+
+    let purchaseOrders = await ctx.db
+      .query("purchaseOrders")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .order("desc")
+      .collect();
 
     if (args.status) {
-      purchaseOrders = await ctx.db
-        .query("purchaseOrders")
-        .withIndex("by_status", (q) => q.eq("status", args.status!))
-        .order("desc")
-        .collect();
-    } else {
-      purchaseOrders = await ctx.db.query("purchaseOrders").order("desc").collect();
+      purchaseOrders = purchaseOrders.filter((po) => po.status === args.status);
     }
 
-    // Filter out soft-deleted documents
     purchaseOrders = purchaseOrders.filter((po) => !po.deletedAt);
 
     if (args.searchTerm && args.searchTerm.trim()) {
@@ -250,7 +322,6 @@ export const search = query({
       );
     }
 
-    // Filter by date range
     if (args.startDate) {
       purchaseOrders = purchaseOrders.filter((po) => po.date >= args.startDate!);
     }

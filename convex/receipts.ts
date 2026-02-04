@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthContext, getAuthContextOptional, canEditDocument, canDeleteDocument } from "./authHelpers";
 
 const companyInfoValidator = v.object({
   name: v.string(),
@@ -16,8 +17,15 @@ export const list = query({
     includeDeleted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    let receipts = await ctx.db.query("receipts").order("desc").collect();
-    // Filter out soft-deleted documents unless includeDeleted is true
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return [];
+
+    let receipts = await ctx.db
+      .query("receipts")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .order("desc")
+      .collect();
+
     if (!args.includeDeleted) {
       receipts = receipts.filter((r) => !r.deletedAt);
     }
@@ -28,7 +36,14 @@ export const list = query({
 export const get = query({
   args: { id: v.id("receipts") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return null;
+
+    const receipt = await ctx.db.get(args.id);
+    if (!receipt || receipt.organizationId !== auth.organizationId) {
+      return null;
+    }
+    return receipt;
   },
 });
 
@@ -51,10 +66,13 @@ export const create = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
     const now = Date.now();
     return await ctx.db.insert("receipts", {
       ...args,
-      mode: args.mode || "receive", // Default to "receive" mode
+      mode: args.mode || "receive",
+      organizationId: auth.organizationId,
+      createdBy: auth.userId,
       createdAt: now,
       updatedAt: now,
     });
@@ -83,11 +101,22 @@ export const update = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
     const { id, ...updates } = args;
     const existing = await ctx.db.get(id);
+
     if (!existing) {
       throw new Error("Receipt not found");
     }
+
+    if (existing.organizationId !== auth.organizationId) {
+      throw new Error("Unauthorized: Receipt belongs to a different organization");
+    }
+
+    if (!canEditDocument(auth, existing.createdBy)) {
+      throw new Error("Unauthorized: You can only edit receipts you created");
+    }
+
     await ctx.db.patch(id, {
       ...updates,
       updatedAt: Date.now(),
@@ -96,14 +125,24 @@ export const update = mutation({
   },
 });
 
-// Soft delete - sets deletedAt timestamp instead of removing
 export const remove = mutation({
   args: { id: v.id("receipts") },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
     const existing = await ctx.db.get(args.id);
+
     if (!existing) {
       throw new Error("Receipt not found");
     }
+
+    if (existing.organizationId !== auth.organizationId) {
+      throw new Error("Unauthorized: Receipt belongs to a different organization");
+    }
+
+    if (!canDeleteDocument(auth, existing.createdBy)) {
+      throw new Error("Unauthorized: You can only delete receipts you created");
+    }
+
     await ctx.db.patch(args.id, {
       deletedAt: Date.now(),
       updatedAt: Date.now(),
@@ -111,17 +150,24 @@ export const remove = mutation({
   },
 });
 
-// Restore a soft-deleted receipt
 export const restore = mutation({
   args: { id: v.id("receipts") },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
     const existing = await ctx.db.get(args.id);
+
     if (!existing) {
       throw new Error("Receipt not found");
     }
+
+    if (existing.organizationId !== auth.organizationId) {
+      throw new Error("Unauthorized: Receipt belongs to a different organization");
+    }
+
     if (!existing.deletedAt) {
       throw new Error("Receipt is not deleted");
     }
+
     await ctx.db.patch(args.id, {
       deletedAt: undefined,
       updatedAt: Date.now(),
@@ -129,23 +175,39 @@ export const restore = mutation({
   },
 });
 
-// Permanently delete a receipt (hard delete)
 export const permanentDelete = mutation({
   args: { id: v.id("receipts") },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
     const existing = await ctx.db.get(args.id);
+
     if (!existing) {
       throw new Error("Receipt not found");
     }
+
+    if (existing.organizationId !== auth.organizationId) {
+      throw new Error("Unauthorized: Receipt belongs to a different organization");
+    }
+
+    if (!canDeleteDocument(auth, existing.createdBy)) {
+      throw new Error("Unauthorized: You can only delete receipts you created");
+    }
+
     await ctx.db.delete(args.id);
   },
 });
 
-// List deleted receipts
 export const listDeleted = query({
   args: {},
   handler: async (ctx) => {
-    const receipts = await ctx.db.query("receipts").order("desc").collect();
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return [];
+
+    const receipts = await ctx.db
+      .query("receipts")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .order("desc")
+      .collect();
     return receipts.filter((r) => r.deletedAt);
   },
 });
@@ -157,9 +219,15 @@ export const search = query({
     endDate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    let receipts = await ctx.db.query("receipts").order("desc").collect();
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return [];
 
-    // Filter out soft-deleted documents
+    let receipts = await ctx.db
+      .query("receipts")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .order("desc")
+      .collect();
+
     receipts = receipts.filter((r) => !r.deletedAt);
 
     if (args.searchTerm && args.searchTerm.trim()) {
@@ -172,7 +240,6 @@ export const search = query({
       );
     }
 
-    // Filter by date range
     if (args.startDate) {
       receipts = receipts.filter((receipt) => receipt.date >= args.startDate!);
     }

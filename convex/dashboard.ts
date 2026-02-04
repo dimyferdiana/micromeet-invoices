@@ -1,12 +1,43 @@
 import { query } from "./_generated/server";
+import { getAuthContextOptional } from "./authHelpers";
 
 // Get dashboard statistics
 export const getStats = query({
   args: {},
   handler: async (ctx) => {
-    const invoices = await ctx.db.query("invoices").collect();
-    const purchaseOrders = await ctx.db.query("purchaseOrders").collect();
-    const receipts = await ctx.db.query("receipts").collect();
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) {
+      return {
+        totalRevenueThisMonth: 0,
+        pendingInvoices: 0,
+        overdueInvoices: 0,
+        paidInvoices: 0,
+        totalInvoices: 0,
+        totalPurchaseOrders: 0,
+        totalReceipts: 0,
+        totalInvoiceAmount: 0,
+        totalPaidAmount: 0,
+        totalPendingAmount: 0,
+      };
+    }
+
+    const invoices = await ctx.db
+      .query("invoices")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .collect();
+    const purchaseOrders = await ctx.db
+      .query("purchaseOrders")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .collect();
+    const receipts = await ctx.db
+      .query("receipts")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .collect();
+
+    // Filter out deleted
+    const activeInvoices = invoices.filter((inv) => !inv.deletedAt);
+    const activePOs = purchaseOrders.filter((po) => !po.deletedAt);
+    const activeReceipts = receipts.filter((r) => !r.deletedAt);
 
     // Current month calculations
     const now = new Date();
@@ -14,7 +45,7 @@ export const getStats = query({
     const currentYear = now.getFullYear();
 
     // Filter invoices for current month (paid)
-    const currentMonthPaidInvoices = invoices.filter((inv) => {
+    const currentMonthPaidInvoices = activeInvoices.filter((inv) => {
       const invDate = new Date(inv.date);
       return (
         invDate.getMonth() === currentMonth &&
@@ -29,28 +60,28 @@ export const getStats = query({
     );
 
     // Count by status
-    const pendingInvoices = invoices.filter(
+    const pendingInvoices = activeInvoices.filter(
       (inv) => inv.status === "sent" || inv.status === "draft"
     ).length;
 
-    const overdueInvoices = invoices.filter((inv) => {
+    const overdueInvoices = activeInvoices.filter((inv) => {
       if (inv.status === "paid" || inv.status === "cancelled") return false;
       const dueDate = new Date(inv.dueDate);
       return dueDate < now;
     }).length;
 
-    const paidInvoices = invoices.filter((inv) => inv.status === "paid").length;
+    const paidInvoices = activeInvoices.filter((inv) => inv.status === "paid").length;
 
     // Total amounts
-    const totalInvoiceAmount = invoices
+    const totalInvoiceAmount = activeInvoices
       .filter((inv) => inv.status !== "cancelled")
       .reduce((sum, inv) => sum + inv.total, 0);
 
-    const totalPaidAmount = invoices
+    const totalPaidAmount = activeInvoices
       .filter((inv) => inv.status === "paid")
       .reduce((sum, inv) => sum + inv.total, 0);
 
-    const totalPendingAmount = invoices
+    const totalPendingAmount = activeInvoices
       .filter((inv) => inv.status === "sent" || inv.status === "draft")
       .reduce((sum, inv) => sum + inv.total, 0);
 
@@ -59,9 +90,9 @@ export const getStats = query({
       pendingInvoices,
       overdueInvoices,
       paidInvoices,
-      totalInvoices: invoices.length,
-      totalPurchaseOrders: purchaseOrders.length,
-      totalReceipts: receipts.length,
+      totalInvoices: activeInvoices.length,
+      totalPurchaseOrders: activePOs.length,
+      totalReceipts: activeReceipts.length,
       totalInvoiceAmount,
       totalPaidAmount,
       totalPendingAmount,
@@ -73,8 +104,15 @@ export const getStats = query({
 export const getRevenueChart = query({
   args: {},
   handler: async (ctx) => {
-    const invoices = await ctx.db.query("invoices").collect();
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return [];
 
+    const invoices = await ctx.db
+      .query("invoices")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .collect();
+
+    const activeInvoices = invoices.filter((inv) => !inv.deletedAt);
     const now = new Date();
     const months: { month: string; revenue: number; count: number }[] = [];
 
@@ -85,7 +123,7 @@ export const getRevenueChart = query({
       const year = date.getFullYear();
       const month = date.getMonth();
 
-      const monthInvoices = invoices.filter((inv) => {
+      const monthInvoices = activeInvoices.filter((inv) => {
         const invDate = new Date(inv.date);
         return (
           invDate.getMonth() === month &&
@@ -111,12 +149,20 @@ export const getRevenueChart = query({
 export const getTopCustomers = query({
   args: {},
   handler: async (ctx) => {
-    const invoices = await ctx.db.query("invoices").collect();
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return [];
+
+    const invoices = await ctx.db
+      .query("invoices")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .collect();
+
+    const activeInvoices = invoices.filter((inv) => !inv.deletedAt);
 
     // Group by customer name
     const customerTotals: Record<string, { name: string; total: number; count: number }> = {};
 
-    invoices
+    activeInvoices
       .filter((inv) => inv.status !== "cancelled")
       .forEach((inv) => {
         const customerName = inv.customer.name;
@@ -140,42 +186,65 @@ export const getTopCustomers = query({
 export const getRecentDocuments = query({
   args: {},
   handler: async (ctx) => {
-    const invoices = await ctx.db.query("invoices").order("desc").take(5);
-    const purchaseOrders = await ctx.db.query("purchaseOrders").order("desc").take(5);
-    const receipts = await ctx.db.query("receipts").order("desc").take(5);
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return [];
 
-    // Combine and sort by creation date
+    const invoices = await ctx.db
+      .query("invoices")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .order("desc")
+      .take(10);
+
+    const purchaseOrders = await ctx.db
+      .query("purchaseOrders")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .order("desc")
+      .take(10);
+
+    const receipts = await ctx.db
+      .query("receipts")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .order("desc")
+      .take(10);
+
+    // Filter out deleted and combine
     const allDocs = [
-      ...invoices.map((inv) => ({
-        id: inv._id,
-        type: "invoice" as const,
-        number: inv.invoiceNumber,
-        name: inv.customer.name,
-        amount: inv.total,
-        date: inv.date,
-        status: inv.status,
-        createdAt: inv.createdAt,
-      })),
-      ...purchaseOrders.map((po) => ({
-        id: po._id,
-        type: "purchaseOrder" as const,
-        number: po.poNumber,
-        name: po.vendor.name,
-        amount: po.total,
-        date: po.date,
-        status: po.status,
-        createdAt: po.createdAt,
-      })),
-      ...receipts.map((r) => ({
-        id: r._id,
-        type: "receipt" as const,
-        number: r.receiptNumber,
-        name: r.receivedFrom,
-        amount: r.amount,
-        date: r.date,
-        status: null,
-        createdAt: r.createdAt,
-      })),
+      ...invoices
+        .filter((inv) => !inv.deletedAt)
+        .map((inv) => ({
+          id: inv._id,
+          type: "invoice" as const,
+          number: inv.invoiceNumber,
+          name: inv.customer.name,
+          amount: inv.total,
+          date: inv.date,
+          status: inv.status,
+          createdAt: inv.createdAt,
+        })),
+      ...purchaseOrders
+        .filter((po) => !po.deletedAt)
+        .map((po) => ({
+          id: po._id,
+          type: "purchaseOrder" as const,
+          number: po.poNumber,
+          name: po.vendor.name,
+          amount: po.total,
+          date: po.date,
+          status: po.status,
+          createdAt: po.createdAt,
+        })),
+      ...receipts
+        .filter((r) => !r.deletedAt)
+        .map((r) => ({
+          id: r._id,
+          type: "receipt" as const,
+          number: r.receiptNumber,
+          name: r.receivedFrom,
+          amount: r.amount,
+          date: r.date,
+          status: null,
+          createdAt: r.createdAt,
+        })),
     ];
 
     return allDocs.sort((a, b) => b.createdAt - a.createdAt).slice(0, 10);

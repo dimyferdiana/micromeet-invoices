@@ -10,5 +10,9 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    dedupe: ["convex", "react", "react-dom"],
+  },
+  optimizeDeps: {
+    include: ["convex", "convex/react", "convex/browser", "@convex-dev/auth/react"],
   },
 })

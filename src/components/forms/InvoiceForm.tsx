@@ -7,6 +7,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { CompanyInfoFields } from "./CompanyInfoFields"
 import { CustomerInfoFields } from "./CustomerInfoFields"
 import { CustomerSelector } from "./CustomerSelector"
@@ -51,6 +58,9 @@ export function InvoiceForm({ editId, initialData, onPreview, onSaved }: Invoice
     editId ? { id: editId as Id<"invoices"> } : "skip"
   )
 
+  const termsTemplates = useQuery(api.termsTemplates.list, { type: "invoice" })
+  const defaultTermsTemplate = useQuery(api.termsTemplates.getDefault, { type: "invoice" })
+
   const createInvoice = useMutation(api.invoices.create)
   const updateInvoice = useMutation(api.invoices.update)
   const createCustomer = useMutation(api.customers.create)
@@ -93,6 +103,7 @@ export function InvoiceForm({ editId, initialData, onPreview, onSaved }: Invoice
         taxAmount: existingInvoice.taxAmount,
         total: existingInvoice.total,
         notes: existingInvoice.notes,
+        terms: existingInvoice.terms,
         status: existingInvoice.status,
       })
       setIsLoaded(true)
@@ -122,6 +133,16 @@ export function InvoiceForm({ editId, initialData, onPreview, onSaved }: Invoice
       }))
     }
   }, [isEditMode, initialData, companySettings])
+
+  // Set default terms template (only for create mode without initialData)
+  useEffect(() => {
+    if (!isEditMode && !initialData && defaultTermsTemplate) {
+      setFormData((prev) => ({
+        ...prev,
+        terms: prev.terms || defaultTermsTemplate.content,
+      }))
+    }
+  }, [isEditMode, initialData, defaultTermsTemplate])
 
   // Calculate totals when items or tax rate changes
   useEffect(() => {
@@ -295,6 +316,42 @@ export function InvoiceForm({ editId, initialData, onPreview, onSaved }: Invoice
           </div>
 
           <Separator />
+
+          {/* Terms & Conditions */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="terms">Syarat & Ketentuan</Label>
+              {termsTemplates && termsTemplates.length > 0 && (
+                <Select
+                  value=""
+                  onValueChange={(templateId) => {
+                    const template = termsTemplates.find((t) => t._id === templateId)
+                    if (template) {
+                      setFormData((prev) => ({ ...prev, terms: template.content }))
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Pilih template..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {termsTemplates.map((template) => (
+                      <SelectItem key={template._id} value={template._id}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            <Textarea
+              id="terms"
+              placeholder="Syarat dan ketentuan invoice..."
+              value={formData.terms || ""}
+              onChange={(e) => setFormData((prev) => ({ ...prev, terms: e.target.value }))}
+              rows={3}
+            />
+          </div>
 
           {/* Notes */}
           <div className="space-y-2">

@@ -1,10 +1,17 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthContext, getAuthContextOptional, canManageOrganization } from "./authHelpers";
 
 export const get = query({
   args: {},
   handler: async (ctx) => {
-    const settings = await ctx.db.query("companySettings").first();
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return null;
+
+    const settings = await ctx.db
+      .query("companySettings")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .first();
     return settings;
   },
 });
@@ -13,7 +20,13 @@ export const get = query({
 export const getWithUrls = query({
   args: {},
   handler: async (ctx) => {
-    const settings = await ctx.db.query("companySettings").first();
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return null;
+
+    const settings = await ctx.db
+      .query("companySettings")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .first();
     if (!settings) return null;
 
     let logoUrl: string | null = null;
@@ -57,13 +70,26 @@ export const upsert = mutation({
     watermarkOpacity: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db.query("companySettings").first();
+    const auth = await getAuthContext(ctx);
+
+    // Only owner/admin can update company settings
+    if (!canManageOrganization(auth)) {
+      throw new Error("Unauthorized: Only owner or admin can update company settings");
+    }
+
+    const existing = await ctx.db
+      .query("companySettings")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .first();
 
     if (existing) {
       await ctx.db.patch(existing._id, args);
       return existing._id;
     } else {
-      return await ctx.db.insert("companySettings", args);
+      return await ctx.db.insert("companySettings", {
+        ...args,
+        organizationId: auth.organizationId,
+      });
     }
   },
 });
@@ -76,7 +102,16 @@ export const updateWatermark = mutation({
     opacity: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db.query("companySettings").first();
+    const auth = await getAuthContext(ctx);
+
+    if (!canManageOrganization(auth)) {
+      throw new Error("Unauthorized: Only owner or admin can update watermark settings");
+    }
+
+    const existing = await ctx.db
+      .query("companySettings")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .first();
 
     if (!existing) {
       throw new Error("Company settings not found. Please set up company info first.");

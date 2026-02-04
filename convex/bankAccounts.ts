@@ -1,28 +1,47 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthContext, getAuthContextOptional, canManageOrganization } from "./authHelpers";
 
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("bankAccounts").order("desc").collect();
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return [];
+
+    return await ctx.db
+      .query("bankAccounts")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .order("desc")
+      .collect();
   },
 });
 
 export const get = query({
   args: { id: v.id("bankAccounts") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return null;
+
+    const account = await ctx.db.get(args.id);
+    if (!account || account.organizationId !== auth.organizationId) {
+      return null;
+    }
+    return account;
   },
 });
 
 export const getDefault = query({
   args: {},
   handler: async (ctx) => {
-    const defaultAccount = await ctx.db
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return null;
+
+    const accounts = await ctx.db
       .query("bankAccounts")
-      .withIndex("by_default", (q) => q.eq("isDefault", true))
-      .first();
-    return defaultAccount;
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .collect();
+
+    return accounts.find((a) => a.isDefault) || null;
   },
 });
 
@@ -36,25 +55,37 @@ export const create = mutation({
     isDefault: v.boolean(),
   },
   handler: async (ctx, args) => {
-    // If this is set as default, unset other defaults
+    const auth = await getAuthContext(ctx);
+
+    if (!canManageOrganization(auth)) {
+      throw new Error("Unauthorized: Only owner or admin can manage bank accounts");
+    }
+
+    // If this is set as default, unset other defaults in this organization
     if (args.isDefault) {
-      const existingDefaults = await ctx.db
+      const existingAccounts = await ctx.db
         .query("bankAccounts")
-        .withIndex("by_default", (q) => q.eq("isDefault", true))
+        .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
         .collect();
 
-      for (const account of existingDefaults) {
-        await ctx.db.patch(account._id, { isDefault: false });
+      for (const account of existingAccounts) {
+        if (account.isDefault) {
+          await ctx.db.patch(account._id, { isDefault: false });
+        }
       }
     }
 
-    // If this is the first account, make it default
-    const existingAccounts = await ctx.db.query("bankAccounts").collect();
+    // If this is the first account for this org, make it default
+    const existingAccounts = await ctx.db
+      .query("bankAccounts")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .collect();
     const shouldBeDefault = args.isDefault || existingAccounts.length === 0;
 
     return await ctx.db.insert("bankAccounts", {
       ...args,
       isDefault: shouldBeDefault,
+      organizationId: auth.organizationId,
       createdAt: Date.now(),
     });
   },
@@ -71,17 +102,31 @@ export const update = mutation({
     isDefault: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
     const { id, ...updates } = args;
+
+    const existing = await ctx.db.get(id);
+    if (!existing) {
+      throw new Error("Bank account not found");
+    }
+
+    if (existing.organizationId !== auth.organizationId) {
+      throw new Error("Unauthorized: Bank account belongs to a different organization");
+    }
+
+    if (!canManageOrganization(auth)) {
+      throw new Error("Unauthorized: Only owner or admin can manage bank accounts");
+    }
 
     // If setting as default, unset other defaults
     if (updates.isDefault) {
-      const existingDefaults = await ctx.db
+      const existingAccounts = await ctx.db
         .query("bankAccounts")
-        .withIndex("by_default", (q) => q.eq("isDefault", true))
+        .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
         .collect();
 
-      for (const account of existingDefaults) {
-        if (account._id !== id) {
+      for (const account of existingAccounts) {
+        if (account._id !== id && account.isDefault) {
           await ctx.db.patch(account._id, { isDefault: false });
         }
       }
@@ -95,13 +140,29 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("bankAccounts") },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
+
     const account = await ctx.db.get(args.id);
+    if (!account) {
+      throw new Error("Bank account not found");
+    }
+
+    if (account.organizationId !== auth.organizationId) {
+      throw new Error("Unauthorized: Bank account belongs to a different organization");
+    }
+
+    if (!canManageOrganization(auth)) {
+      throw new Error("Unauthorized: Only owner or admin can manage bank accounts");
+    }
 
     await ctx.db.delete(args.id);
 
     // If deleted account was default, set another as default
-    if (account?.isDefault) {
-      const remaining = await ctx.db.query("bankAccounts").first();
+    if (account.isDefault) {
+      const remaining = await ctx.db
+        .query("bankAccounts")
+        .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+        .first();
       if (remaining) {
         await ctx.db.patch(remaining._id, { isDefault: true });
       }
@@ -112,14 +173,31 @@ export const remove = mutation({
 export const setDefault = mutation({
   args: { id: v.id("bankAccounts") },
   handler: async (ctx, args) => {
-    // Unset all defaults
-    const existingDefaults = await ctx.db
+    const auth = await getAuthContext(ctx);
+
+    const account = await ctx.db.get(args.id);
+    if (!account) {
+      throw new Error("Bank account not found");
+    }
+
+    if (account.organizationId !== auth.organizationId) {
+      throw new Error("Unauthorized: Bank account belongs to a different organization");
+    }
+
+    if (!canManageOrganization(auth)) {
+      throw new Error("Unauthorized: Only owner or admin can manage bank accounts");
+    }
+
+    // Unset all defaults in this organization
+    const existingAccounts = await ctx.db
       .query("bankAccounts")
-      .withIndex("by_default", (q) => q.eq("isDefault", true))
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
       .collect();
 
-    for (const account of existingDefaults) {
-      await ctx.db.patch(account._id, { isDefault: false });
+    for (const acc of existingAccounts) {
+      if (acc.isDefault) {
+        await ctx.db.patch(acc._id, { isDefault: false });
+      }
     }
 
     // Set new default

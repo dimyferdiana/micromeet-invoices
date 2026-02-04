@@ -7,6 +7,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { CompanyInfoFields } from "./CompanyInfoFields"
 import { CustomerInfoFields } from "./CustomerInfoFields"
 import { CustomerSelector } from "./CustomerSelector"
@@ -51,6 +58,9 @@ export function PurchaseOrderForm({ editId, initialData, onPreview, onSaved }: P
     editId ? { id: editId as Id<"purchaseOrders"> } : "skip"
   )
 
+  const termsTemplates = useQuery(api.termsTemplates.list, { type: "purchaseOrder" })
+  const defaultTermsTemplate = useQuery(api.termsTemplates.getDefault, { type: "purchaseOrder" })
+
   const createPO = useMutation(api.purchaseOrders.create)
   const updatePO = useMutation(api.purchaseOrders.update)
   const createCustomer = useMutation(api.customers.create)
@@ -71,7 +81,7 @@ export function PurchaseOrderForm({ editId, initialData, onPreview, onSaved }: P
       total: 0,
       shippingAddress: "",
       notes: "",
-      terms: "1. Barang yang sudah dibeli tidak dapat dikembalikan.\n2. Pembayaran dilakukan dalam waktu 30 hari setelah barang diterima.",
+      terms: "",
       status: "draft",
     }
   )
@@ -126,6 +136,16 @@ export function PurchaseOrderForm({ editId, initialData, onPreview, onSaved }: P
       }))
     }
   }, [isEditMode, initialData, companySettings])
+
+  // Set default terms template (only for create mode without initialData)
+  useEffect(() => {
+    if (!isEditMode && !initialData && defaultTermsTemplate) {
+      setFormData((prev) => ({
+        ...prev,
+        terms: prev.terms || defaultTermsTemplate.content,
+      }))
+    }
+  }, [isEditMode, initialData, defaultTermsTemplate])
 
   // Calculate totals when items or tax rate changes
   useEffect(() => {
@@ -320,7 +340,31 @@ export function PurchaseOrderForm({ editId, initialData, onPreview, onSaved }: P
 
           {/* Terms */}
           <div className="space-y-2">
-            <Label htmlFor="terms">Syarat & Ketentuan</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="terms">Syarat & Ketentuan</Label>
+              {termsTemplates && termsTemplates.length > 0 && (
+                <Select
+                  value=""
+                  onValueChange={(templateId) => {
+                    const template = termsTemplates.find((t) => t._id === templateId)
+                    if (template) {
+                      setFormData((prev) => ({ ...prev, terms: template.content }))
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Pilih template..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {termsTemplates.map((template) => (
+                      <SelectItem key={template._id} value={template._id}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
             <Textarea
               id="terms"
               placeholder="Syarat dan ketentuan pembelian..."

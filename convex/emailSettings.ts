@@ -1,11 +1,19 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthContext, getAuthContextOptional, canManageOrganization } from "./authHelpers";
 
 // Get email settings
 export const get = query({
   args: {},
   handler: async (ctx) => {
-    const settings = await ctx.db.query("emailSettings").first();
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return null;
+
+    const settings = await ctx.db
+      .query("emailSettings")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .first();
+
     if (!settings) {
       return null;
     }
@@ -21,7 +29,13 @@ export const get = query({
 export const getWithPassword = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("emailSettings").first();
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return null;
+
+    return await ctx.db
+      .query("emailSettings")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .first();
   },
 });
 
@@ -32,13 +46,22 @@ export const upsert = mutation({
     smtpPort: v.number(),
     smtpSecure: v.boolean(),
     smtpUser: v.string(),
-    smtpPassword: v.optional(v.string()), // Only update if provided
+    smtpPassword: v.optional(v.string()),
     senderName: v.string(),
     senderEmail: v.string(),
     replyToEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db.query("emailSettings").first();
+    const auth = await getAuthContext(ctx);
+
+    if (!canManageOrganization(auth)) {
+      throw new Error("Unauthorized: Only owner or admin can update email settings");
+    }
+
+    const existing = await ctx.db
+      .query("emailSettings")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .first();
 
     const data = {
       smtpHost: args.smtpHost,
@@ -52,7 +75,6 @@ export const upsert = mutation({
     };
 
     if (existing) {
-      // Only update password if a new one is provided (not masked value)
       const updateData = args.smtpPassword && args.smtpPassword !== "********"
         ? { ...data, smtpPassword: args.smtpPassword }
         : data;
@@ -60,13 +82,13 @@ export const upsert = mutation({
       await ctx.db.patch(existing._id, updateData);
       return existing._id;
     } else {
-      // For new settings, password is required
       if (!args.smtpPassword) {
         throw new Error("Password is required for new email settings");
       }
       return await ctx.db.insert("emailSettings", {
         ...data,
         smtpPassword: args.smtpPassword,
+        organizationId: auth.organizationId,
       });
     }
   },
@@ -78,7 +100,13 @@ export const updateTestStatus = mutation({
     status: v.union(v.literal("success"), v.literal("failed")),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db.query("emailSettings").first();
+    const auth = await getAuthContext(ctx);
+
+    const existing = await ctx.db
+      .query("emailSettings")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .first();
+
     if (existing) {
       await ctx.db.patch(existing._id, {
         testStatus: args.status,
@@ -92,7 +120,17 @@ export const updateTestStatus = mutation({
 export const remove = mutation({
   args: {},
   handler: async (ctx) => {
-    const existing = await ctx.db.query("emailSettings").first();
+    const auth = await getAuthContext(ctx);
+
+    if (!canManageOrganization(auth)) {
+      throw new Error("Unauthorized: Only owner or admin can delete email settings");
+    }
+
+    const existing = await ctx.db
+      .query("emailSettings")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .first();
+
     if (existing) {
       await ctx.db.delete(existing._id);
     }
@@ -107,7 +145,17 @@ export const updateTemplate = mutation({
     includePaymentInfo: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db.query("emailSettings").first();
+    const auth = await getAuthContext(ctx);
+
+    if (!canManageOrganization(auth)) {
+      throw new Error("Unauthorized: Only owner or admin can update email settings");
+    }
+
+    const existing = await ctx.db
+      .query("emailSettings")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .first();
+
     if (!existing) {
       throw new Error("Email settings not found. Please configure SMTP first.");
     }
@@ -130,7 +178,17 @@ export const updateReminder = mutation({
     reminderMessage: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db.query("emailSettings").first();
+    const auth = await getAuthContext(ctx);
+
+    if (!canManageOrganization(auth)) {
+      throw new Error("Unauthorized: Only owner or admin can update email settings");
+    }
+
+    const existing = await ctx.db
+      .query("emailSettings")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .first();
+
     if (!existing) {
       throw new Error("Email settings not found. Please configure SMTP first.");
     }

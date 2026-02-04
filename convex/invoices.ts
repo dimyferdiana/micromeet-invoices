@@ -1,5 +1,6 @@
 import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthContext, getAuthContextOptional, canEditDocument, canDeleteDocument } from "./authHelpers";
 
 const lineItemValidator = v.object({
   description: v.string(),
@@ -39,16 +40,20 @@ export const list = query({
     includeDeleted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    let invoices;
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return [];
+
+    let invoices = await ctx.db
+      .query("invoices")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .order("desc")
+      .collect();
+
+    // Filter by status if provided
     if (args.status) {
-      invoices = await ctx.db
-        .query("invoices")
-        .withIndex("by_status", (q) => q.eq("status", args.status!))
-        .order("desc")
-        .collect();
-    } else {
-      invoices = await ctx.db.query("invoices").order("desc").collect();
+      invoices = invoices.filter((inv) => inv.status === args.status);
     }
+
     // Filter out soft-deleted documents unless includeDeleted is true
     if (!args.includeDeleted) {
       invoices = invoices.filter((inv) => !inv.deletedAt);
@@ -60,7 +65,15 @@ export const list = query({
 export const get = query({
   args: { id: v.id("invoices") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return null;
+
+    const invoice = await ctx.db.get(args.id);
+    // Ensure user can only access their organization's invoices
+    if (!invoice || invoice.organizationId !== auth.organizationId) {
+      return null;
+    }
+    return invoice;
   },
 });
 
@@ -77,6 +90,7 @@ export const create = mutation({
     taxAmount: v.number(),
     total: v.number(),
     notes: v.optional(v.string()),
+    terms: v.optional(v.string()),
     status: v.union(
       v.literal("draft"),
       v.literal("sent"),
@@ -86,9 +100,12 @@ export const create = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
     const now = Date.now();
     return await ctx.db.insert("invoices", {
       ...args,
+      organizationId: auth.organizationId,
+      createdBy: auth.userId,
       createdAt: now,
       updatedAt: now,
     });
@@ -109,6 +126,7 @@ export const update = mutation({
     taxAmount: v.optional(v.number()),
     total: v.optional(v.number()),
     notes: v.optional(v.string()),
+    terms: v.optional(v.string()),
     status: v.optional(
       v.union(
         v.literal("draft"),
@@ -120,11 +138,24 @@ export const update = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
     const { id, ...updates } = args;
     const existing = await ctx.db.get(id);
+
     if (!existing) {
       throw new Error("Invoice not found");
     }
+
+    // Check organization access
+    if (existing.organizationId !== auth.organizationId) {
+      throw new Error("Unauthorized: Invoice belongs to a different organization");
+    }
+
+    // Check edit permission (owner/admin can edit all, member can only edit their own)
+    if (!canEditDocument(auth, existing.createdBy)) {
+      throw new Error("Unauthorized: You can only edit invoices you created");
+    }
+
     await ctx.db.patch(id, {
       ...updates,
       updatedAt: Date.now(),
@@ -137,10 +168,21 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("invoices") },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
     const existing = await ctx.db.get(args.id);
+
     if (!existing) {
       throw new Error("Invoice not found");
     }
+
+    if (existing.organizationId !== auth.organizationId) {
+      throw new Error("Unauthorized: Invoice belongs to a different organization");
+    }
+
+    if (!canDeleteDocument(auth, existing.createdBy)) {
+      throw new Error("Unauthorized: You can only delete invoices you created");
+    }
+
     await ctx.db.patch(args.id, {
       deletedAt: Date.now(),
       updatedAt: Date.now(),
@@ -152,13 +194,21 @@ export const remove = mutation({
 export const restore = mutation({
   args: { id: v.id("invoices") },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
     const existing = await ctx.db.get(args.id);
+
     if (!existing) {
       throw new Error("Invoice not found");
     }
+
+    if (existing.organizationId !== auth.organizationId) {
+      throw new Error("Unauthorized: Invoice belongs to a different organization");
+    }
+
     if (!existing.deletedAt) {
       throw new Error("Invoice is not deleted");
     }
+
     await ctx.db.patch(args.id, {
       deletedAt: undefined,
       updatedAt: Date.now(),
@@ -170,10 +220,21 @@ export const restore = mutation({
 export const permanentDelete = mutation({
   args: { id: v.id("invoices") },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
     const existing = await ctx.db.get(args.id);
+
     if (!existing) {
       throw new Error("Invoice not found");
     }
+
+    if (existing.organizationId !== auth.organizationId) {
+      throw new Error("Unauthorized: Invoice belongs to a different organization");
+    }
+
+    if (!canDeleteDocument(auth, existing.createdBy)) {
+      throw new Error("Unauthorized: You can only delete invoices you created");
+    }
+
     await ctx.db.delete(args.id);
   },
 });
@@ -182,7 +243,14 @@ export const permanentDelete = mutation({
 export const listDeleted = query({
   args: {},
   handler: async (ctx) => {
-    const invoices = await ctx.db.query("invoices").order("desc").collect();
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return [];
+
+    const invoices = await ctx.db
+      .query("invoices")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .order("desc")
+      .collect();
     return invoices.filter((inv) => inv.deletedAt);
   },
 });
@@ -199,6 +267,21 @@ export const updateStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const auth = await getAuthContext(ctx);
+    const existing = await ctx.db.get(args.id);
+
+    if (!existing) {
+      throw new Error("Invoice not found");
+    }
+
+    if (existing.organizationId !== auth.organizationId) {
+      throw new Error("Unauthorized: Invoice belongs to a different organization");
+    }
+
+    if (!canEditDocument(auth, existing.createdBy)) {
+      throw new Error("Unauthorized: You can only update invoices you created");
+    }
+
     await ctx.db.patch(args.id, {
       status: args.status,
       updatedAt: Date.now(),
@@ -222,16 +305,18 @@ export const search = query({
     endDate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    let invoices;
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return [];
 
+    let invoices = await ctx.db
+      .query("invoices")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .order("desc")
+      .collect();
+
+    // Filter by status
     if (args.status) {
-      invoices = await ctx.db
-        .query("invoices")
-        .withIndex("by_status", (q) => q.eq("status", args.status!))
-        .order("desc")
-        .collect();
-    } else {
-      invoices = await ctx.db.query("invoices").order("desc").collect();
+      invoices = invoices.filter((inv) => inv.status === args.status);
     }
 
     // Filter out soft-deleted documents
@@ -258,46 +343,8 @@ export const search = query({
   },
 });
 
-// Check and update overdue invoices
-// This internal mutation checks all invoices with status "draft" or "sent"
-// and marks them as "overdue" if the due date has passed
-// Called by cron job daily at 00:00 UTC
+// Check and update overdue invoices (internal - no auth required)
 export const checkOverdueInvoices = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
-
-    // Get all invoices that could potentially be overdue
-    const draftInvoices = await ctx.db
-      .query("invoices")
-      .withIndex("by_status", (q) => q.eq("status", "draft"))
-      .collect();
-
-    const sentInvoices = await ctx.db
-      .query("invoices")
-      .withIndex("by_status", (q) => q.eq("status", "sent"))
-      .collect();
-
-    const potentiallyOverdue = [...draftInvoices, ...sentInvoices];
-    let updatedCount = 0;
-
-    for (const invoice of potentiallyOverdue) {
-      // Check if due date has passed (dueDate < today)
-      if (invoice.dueDate < today) {
-        await ctx.db.patch(invoice._id, {
-          status: "overdue",
-          updatedAt: Date.now(),
-        });
-        updatedCount++;
-      }
-    }
-
-    return { updatedCount };
-  },
-});
-
-// Public mutation to manually trigger overdue check (can be called from UI)
-export const refreshOverdueStatus = mutation({
   args: {},
   handler: async (ctx) => {
     const today = new Date().toISOString().split("T")[0];
@@ -313,6 +360,40 @@ export const refreshOverdueStatus = mutation({
       .collect();
 
     const potentiallyOverdue = [...draftInvoices, ...sentInvoices];
+    let updatedCount = 0;
+
+    for (const invoice of potentiallyOverdue) {
+      if (invoice.dueDate < today) {
+        await ctx.db.patch(invoice._id, {
+          status: "overdue",
+          updatedAt: Date.now(),
+        });
+        updatedCount++;
+      }
+    }
+
+    return { updatedCount };
+  },
+});
+
+// Public mutation to manually trigger overdue check
+export const refreshOverdueStatus = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const auth = await getAuthContextOptional(ctx);
+    if (!auth) return { updatedCount: 0 };
+
+    const today = new Date().toISOString().split("T")[0];
+
+    // Only check invoices in the user's organization
+    const invoices = await ctx.db
+      .query("invoices")
+      .withIndex("by_org", (q) => q.eq("organizationId", auth.organizationId))
+      .collect();
+
+    const potentiallyOverdue = invoices.filter(
+      (inv) => inv.status === "draft" || inv.status === "sent"
+    );
     let updatedCount = 0;
 
     for (const invoice of potentiallyOverdue) {

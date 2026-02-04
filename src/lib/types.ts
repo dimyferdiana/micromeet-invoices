@@ -53,6 +53,7 @@ export interface InvoiceFormData {
   taxAmount: number
   total: number
   notes?: string
+  terms?: string
   status: InvoiceStatus
 }
 

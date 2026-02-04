@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 // Generate upload URL for file upload
 export const generateUploadUrl = mutation({
@@ -133,5 +134,30 @@ export const removeCompanyStamp = mutation({
       }
       await ctx.db.patch(settings._id, { stampFileId: undefined });
     }
+  },
+});
+
+// Update user profile image
+export const updateProfileImage = mutation({
+  args: { imageStorageId: v.id("_storage") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const imageUrl = await ctx.storage.getUrl(args.imageStorageId);
+    if (!imageUrl) throw new Error("Failed to get image URL");
+
+    await ctx.db.patch(userId, { image: imageUrl });
+  },
+});
+
+// Remove user profile image
+export const removeProfileImage = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    await ctx.db.patch(userId, { image: undefined });
   },
 });
