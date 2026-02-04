@@ -80,23 +80,23 @@ export function PurchaseOrderPreview({ data }: PurchaseOrderPreviewProps) {
         </div>
       )}
 
-      {/* Items Table */}
+      {/* Items Table - matching PDF style with primary header and alternating rows */}
       <table className="w-full mb-8">
         <thead>
-          <tr className="border-b-2 border-primary">
-            <th className="text-left py-3 font-semibold">Deskripsi</th>
-            <th className="text-center py-3 font-semibold w-20">Qty</th>
-            <th className="text-right py-3 font-semibold w-32">Harga Satuan</th>
-            <th className="text-right py-3 font-semibold w-32">Jumlah</th>
+          <tr className="bg-primary text-primary-foreground">
+            <th className="text-left py-3 px-3 font-semibold">Deskripsi</th>
+            <th className="text-center py-3 px-3 font-semibold w-20">Qty</th>
+            <th className="text-right py-3 px-3 font-semibold w-32">Harga Satuan</th>
+            <th className="text-right py-3 px-3 font-semibold w-32">Jumlah</th>
           </tr>
         </thead>
         <tbody>
           {data.items.map((item, index) => (
-            <tr key={index} className="border-b">
-              <td className="py-3">{item.description}</td>
-              <td className="text-center py-3">{item.quantity}</td>
-              <td className="text-right py-3">{formatCurrency(item.unitPrice)}</td>
-              <td className="text-right py-3">{formatCurrency(item.amount)}</td>
+            <tr key={index} className={index % 2 === 1 ? "bg-gray-50" : ""}>
+              <td className="py-3 px-3">{item.description}</td>
+              <td className="text-center py-3 px-3">{item.quantity}</td>
+              <td className="text-right py-3 px-3">{formatCurrency(item.unitPrice)}</td>
+              <td className="text-right py-3 px-3">{formatCurrency(item.amount)}</td>
             </tr>
           ))}
         </tbody>

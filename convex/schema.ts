@@ -137,7 +137,8 @@ export default defineSchema({
     receiptNumber: v.string(),
     date: v.string(),
     company: companyInfoValidator,
-    receivedFrom: v.string(),
+    mode: v.optional(v.union(v.literal("receive"), v.literal("send"))), // "receive" = company receives money (default), "send" = company sends money
+    receivedFrom: v.string(), // In "send" mode, this is the recipient name
     amount: v.number(),
     amountInWords: v.string(),
     paymentMethod: v.union(

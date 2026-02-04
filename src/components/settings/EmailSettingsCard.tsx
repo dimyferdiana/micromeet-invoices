@@ -79,6 +79,7 @@ export function EmailSettingsCard() {
   const emailSettings = useQuery(api.emailSettings.get)
   const upsertEmailSettings = useMutation(api.emailSettings.upsert)
   const testConnection = useAction(api.emails.testConnection)
+  const testConnectionWithStoredPassword = useAction(api.emails.testConnectionWithStoredPassword)
 
   const [formData, setFormData] = useState<EmailFormData>(defaultEmailForm)
   const [isSaving, setIsSaving] = useState(false)
@@ -154,21 +155,30 @@ export function EmailSettingsCard() {
   }
 
   const handleTestConnection = async () => {
-    if (!formData.smtpHost || !formData.smtpUser || !formData.smtpPassword || formData.smtpPassword === "********") {
-      toast.error("Lengkapi semua field SMTP termasuk password untuk menguji koneksi")
+    if (!formData.smtpHost || !formData.smtpUser) {
+      toast.error("Lengkapi semua field SMTP untuk menguji koneksi")
       return
     }
 
     setIsTesting(true)
     try {
-      const result = await testConnection({
-        smtpHost: formData.smtpHost,
-        smtpPort: formData.smtpPort,
-        smtpSecure: formData.smtpSecure,
-        smtpUser: formData.smtpUser,
-        smtpPassword: formData.smtpPassword,
-        senderEmail: formData.senderEmail,
-      })
+      let result;
+
+      // If password is masked (********) or empty, use stored password from database
+      if (!formData.smtpPassword || formData.smtpPassword === "********") {
+        // Test with stored credentials
+        result = await testConnectionWithStoredPassword()
+      } else {
+        // Test with form data (new password entered)
+        result = await testConnection({
+          smtpHost: formData.smtpHost,
+          smtpPort: formData.smtpPort,
+          smtpSecure: formData.smtpSecure,
+          smtpUser: formData.smtpUser,
+          smtpPassword: formData.smtpPassword,
+          senderEmail: formData.senderEmail,
+        })
+      }
 
       if (result.success) {
         toast.success(result.message)

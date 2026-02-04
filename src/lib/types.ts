@@ -34,6 +34,9 @@ export type POStatus = "draft" | "sent" | "confirmed" | "received" | "cancelled"
 // Payment method for receipts
 export type PaymentMethod = "cash" | "transfer" | "check" | "other"
 
+// Receipt mode: receive (company receives money) or send (company sends money)
+export type ReceiptMode = "receive" | "send"
+
 // Document types
 export type DocumentType = "invoice" | "purchaseOrder" | "receipt"
 
@@ -76,7 +79,8 @@ export interface ReceiptFormData {
   receiptNumber: string
   date: string
   company: CompanyInfo
-  receivedFrom: string
+  mode: ReceiptMode // "receive" = company receives money, "send" = company sends money
+  receivedFrom: string // In "send" mode, this becomes "sendTo" (recipient name)
   amount: number
   amountInWords: string
   paymentMethod: PaymentMethod
@@ -112,6 +116,12 @@ export const paymentMethodLabels: Record<PaymentMethod, string> = {
   transfer: "Transfer Bank",
   check: "Cek/Giro",
   other: "Lainnya",
+}
+
+// Receipt mode labels
+export const receiptModeLabels: Record<ReceiptMode, string> = {
+  receive: "Terima Uang",
+  send: "Kirim Uang",
 }
 
 // Bank account information

@@ -13,78 +13,76 @@ export function ReceiptPreview({ data }: ReceiptPreviewProps) {
 
   return (
     <div className="bg-white p-8 shadow-lg max-w-2xl mx-auto" id="receipt-preview">
-      {/* Header */}
-      <div className="text-center mb-8 border-b pb-6">
-        {companySettings?.logoUrl && (
-          <img
-            src={companySettings.logoUrl}
-            alt="Company Logo"
-            className="max-h-16 max-w-32 object-contain mx-auto mb-4"
-          />
-        )}
-        <h1 className="text-3xl font-bold text-primary mb-2">KWITANSI</h1>
-        <p className="text-lg font-semibold">{data.receiptNumber}</p>
+      {/* Header - Logo and Title side by side, Date on right */}
+      <div className="flex justify-between items-start mb-6">
+        <div className="flex items-start gap-4">
+          {companySettings?.logoUrl && (
+            <img
+              src={companySettings.logoUrl}
+              alt="Company Logo"
+              className="max-h-16 max-w-32 object-contain"
+            />
+          )}
+          <div>
+            <h1 className="text-3xl font-bold text-primary">KWITANSI</h1>
+            <p className="text-lg font-semibold mt-1">{data.receiptNumber}</p>
+          </div>
+        </div>
+        <p className="text-sm text-muted-foreground">{formatDate(data.date)}</p>
       </div>
 
       {/* Company Info */}
-      <div className="text-center mb-8">
-        <p className="font-bold text-xl">{data.company.name}</p>
-        <p className="text-muted-foreground whitespace-pre-line">{data.company.address}</p>
-        <div className="flex justify-center gap-4 text-sm text-muted-foreground mt-1">
-          {data.company.phone && <span>Tel: {data.company.phone}</span>}
-          {data.company.email && <span>Email: {data.company.email}</span>}
-        </div>
+      <div className="mb-6">
+        <p className="font-bold text-lg">{data.company.name}</p>
+        <p className="text-sm text-muted-foreground whitespace-pre-line">{data.company.address}</p>
+        {data.company.phone && (
+          <p className="text-sm text-muted-foreground">Tel: {data.company.phone}</p>
+        )}
       </div>
 
-      {/* Receipt Details */}
-      <div className="space-y-4 mb-8">
-        <div className="grid grid-cols-[140px_1fr] gap-2">
-          <span className="font-semibold">Tanggal</span>
-          <span>: {formatDate(data.date)}</span>
+      {/* Receipt Content Box - matches PDF gray box */}
+      <div className="bg-gray-50 rounded-lg p-6 mb-6">
+        <div className="mb-4">
+          <p className="text-sm text-muted-foreground mb-1">
+            {data.mode === "send" ? "Sudah kirim kepada:" : "Sudah terima dari:"}
+          </p>
+          <p className="text-xl font-bold">{data.receivedFrom}</p>
         </div>
 
-        <div className="grid grid-cols-[140px_1fr] gap-2">
-          <span className="font-semibold">Diterima Dari</span>
-          <span>: {data.receivedFrom}</span>
+        <div className="mb-4">
+          <p className="text-sm text-muted-foreground mb-1">Uang sejumlah:</p>
+          <p className="text-2xl font-bold text-primary">{formatCurrency(data.amount)}</p>
         </div>
 
-        <div className="grid grid-cols-[140px_1fr] gap-2 items-start">
-          <span className="font-semibold">Jumlah Uang</span>
-          <div>
-            <span className="text-2xl font-bold text-primary">: {formatCurrency(data.amount)}</span>
-          </div>
+        <p className="text-sm font-semibold italic">({data.amountInWords})</p>
+      </div>
+
+      {/* Payment Details */}
+      <div className="space-y-4 mb-6">
+        <div>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase mb-1">Untuk Pembayaran</h3>
+          <p className="whitespace-pre-line">{data.paymentFor}</p>
         </div>
 
-        <div className="grid grid-cols-[140px_1fr] gap-2">
-          <span className="font-semibold">Terbilang</span>
-          <span className="italic">: {data.amountInWords}</span>
-        </div>
-
-        <div className="grid grid-cols-[140px_1fr] gap-2">
-          <span className="font-semibold">Metode Bayar</span>
-          <span>: {paymentMethodLabels[data.paymentMethod]}</span>
-        </div>
-
-        <div className="grid grid-cols-[140px_1fr] gap-2">
-          <span className="font-semibold">Untuk Pembayaran</span>
-          <span className="whitespace-pre-line">: {data.paymentFor}</span>
+        <div>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase mb-1">Metode Pembayaran</h3>
+          <p>{paymentMethodLabels[data.paymentMethod]}</p>
         </div>
       </div>
 
       {/* Notes */}
       {data.notes && (
-        <div className="mb-8 p-4 bg-muted/30 rounded-lg">
-          <h3 className="text-sm font-semibold text-muted-foreground mb-2">Catatan</h3>
+        <div className="mb-6">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase mb-1">Catatan</h3>
           <p className="text-muted-foreground whitespace-pre-line text-sm">{data.notes}</p>
         </div>
       )}
 
-      {/* Signature Section */}
-      <div className="mt-12 flex justify-end">
-        <div className="text-center w-48">
-          <p className="text-sm text-muted-foreground mb-4">
-            {data.company.address?.split(",")[0] || ""},<br />
-            {formatDate(data.date)}
+      {/* Signature Section - Right aligned like PDF */}
+      <div className="flex justify-end mt-10">
+        <div className="w-44 text-center">
+          <p className="text-sm text-muted-foreground mb-2">
+            {data.mode === "send" ? "Pengirim," : "Penerima,"}
           </p>
           <div className="relative min-h-20 flex items-center justify-center mb-2">
             {companySettings?.stampUrl && (
@@ -103,9 +101,9 @@ export function ReceiptPreview({ data }: ReceiptPreviewProps) {
             )}
           </div>
           {!(companySettings?.signatureUrl || companySettings?.stampUrl) && (
-            <div className="border-b-2 border-dashed h-16 mb-2"></div>
+            <div className="border-b-2 border-gray-300 h-16 mb-2"></div>
           )}
-          <p className="font-medium">Penerima</p>
+          <p className="text-sm">{data.company.name}</p>
         </div>
       </div>
 

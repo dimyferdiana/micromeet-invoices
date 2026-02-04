@@ -4,6 +4,7 @@ import { api } from "../../convex/_generated/api"
 import { Header } from "@/components/layout/Header"
 import { ReceiptForm } from "@/components/forms/ReceiptForm"
 import { ReceiptPreview } from "@/components/previews/ReceiptPreview"
+import { EmailDialog } from "@/components/forms/EmailDialog"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { SearchInput } from "@/components/ui/search-input"
@@ -20,7 +21,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import type { ReceiptFormData } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import { IconArrowLeft, IconPrinter, IconEye, IconTrash, IconEdit } from "@tabler/icons-react"
+import { downloadReceiptPdf } from "@/lib/pdf"
+import { IconArrowLeft, IconPrinter, IconEye, IconTrash, IconEdit, IconMail, IconLoader2 } from "@tabler/icons-react"
 import type { Id } from "../../convex/_generated/dataModel"
 import { toast } from "sonner"
 import { useDebounce } from "@/hooks/useDebounce"
@@ -40,12 +42,16 @@ export function ReceiptsPage() {
   }), [debouncedSearch, startDate, endDate])
 
   const receipts = useQuery(api.receipts.search, searchArgs)
+  const companySettings = useQuery(api.companySettings.getWithUrls)
   const deleteReceipt = useMutation(api.receipts.remove)
 
   const [viewMode, setViewMode] = useState<ViewMode>("list")
   const [previewData, setPreviewData] = useState<ReceiptFormData | null>(null)
+  const [previewId, setPreviewId] = useState<string | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false)
+  const [isPrinting, setIsPrinting] = useState(false)
 
   const handlePreview = (data: ReceiptFormData) => {
     setPreviewData(data)
@@ -75,18 +81,45 @@ export function ReceiptsPage() {
     }
   }
 
-  const handlePrint = () => {
-    window.print()
+  const handlePrint = async () => {
+    if (!previewData) return
+
+    setIsPrinting(true)
+    try {
+      // Watermark options from company settings
+      const watermark = companySettings?.watermarkEnabled ? {
+        enabled: true,
+        text: companySettings.watermarkText || companySettings.name,
+        opacity: companySettings.watermarkOpacity ?? 10,
+      } : undefined
+
+      await downloadReceiptPdf(
+        previewData,
+        `${previewData.receiptNumber}.pdf`,
+        companySettings?.logoUrl || undefined,
+        watermark
+      )
+      toast.success("PDF berhasil diunduh")
+    } catch (error) {
+      console.error("Failed to generate PDF:", error)
+      toast.error("Gagal membuat PDF")
+    } finally {
+      setIsPrinting(false)
+    }
   }
 
   if (viewMode === "create") {
     return (
       <div className="space-y-6">
-        <Button variant="ghost" onClick={() => setViewMode("list")} className="mb-4">
+        <Button variant="ghost" onClick={() => { setViewMode("list"); setPreviewData(null); }} className="mb-4">
           <IconArrowLeft className="h-4 w-4 mr-2" />
           Kembali ke Daftar
         </Button>
-        <ReceiptForm onPreview={handlePreview} onSaved={handleSaved} />
+        <ReceiptForm
+          initialData={previewData || undefined}
+          onPreview={handlePreview}
+          onSaved={handleSaved}
+        />
       </div>
     )
   }
@@ -94,11 +127,16 @@ export function ReceiptsPage() {
   if (viewMode === "edit" && editId) {
     return (
       <div className="space-y-6">
-        <Button variant="ghost" onClick={() => { setViewMode("list"); setEditId(null); }} className="mb-4">
+        <Button variant="ghost" onClick={() => { setViewMode("list"); setEditId(null); setPreviewData(null); }} className="mb-4">
           <IconArrowLeft className="h-4 w-4 mr-2" />
           Kembali ke Daftar
         </Button>
-        <ReceiptForm editId={editId} onPreview={handlePreview} onSaved={handleSaved} />
+        <ReceiptForm
+          editId={editId}
+          initialData={previewData || undefined}
+          onPreview={handlePreview}
+          onSaved={handleSaved}
+        />
       </div>
     )
   }
@@ -111,12 +149,46 @@ export function ReceiptsPage() {
             <IconArrowLeft className="h-4 w-4 mr-2" />
             Kembali ke Form
           </Button>
-          <Button onClick={handlePrint}>
-            <IconPrinter className="h-4 w-4 mr-2" />
-            Print / Download
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setEmailDialogOpen(true)}>
+              <IconMail className="h-4 w-4 mr-2" />
+              Kirim Email
+            </Button>
+            <Button onClick={handlePrint} disabled={isPrinting}>
+              {isPrinting ? (
+                <>
+                  <IconLoader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Membuat PDF...
+                </>
+              ) : (
+                <>
+                  <IconPrinter className="h-4 w-4 mr-2" />
+                  Download PDF
+                </>
+              )}
+            </Button>
+          </div>
         </div>
         <ReceiptPreview data={previewData} />
+
+        {/* Email Dialog */}
+        <EmailDialog
+          open={emailDialogOpen}
+          onOpenChange={setEmailDialogOpen}
+          documentType="receipt"
+          documentId={previewId || ""}
+          documentNumber={previewData.receiptNumber}
+          recipientName={previewData.receivedFrom}
+          total={previewData.amount}
+          companyName={previewData.company.name}
+          receiptData={previewData}
+          logoUrl={companySettings?.logoUrl || undefined}
+          watermark={companySettings?.watermarkEnabled ? {
+            enabled: true,
+            text: companySettings.watermarkText || companySettings.name,
+            opacity: companySettings.watermarkOpacity ?? 10,
+          } : undefined}
+        />
       </div>
     )
   }
@@ -189,6 +261,7 @@ export function ReceiptsPage() {
                           receiptNumber: receipt.receiptNumber,
                           date: receipt.date,
                           company: receipt.company,
+                          mode: receipt.mode || "receive",
                           receivedFrom: receipt.receivedFrom,
                           amount: receipt.amount,
                           amountInWords: receipt.amountInWords,
@@ -196,6 +269,7 @@ export function ReceiptsPage() {
                           paymentFor: receipt.paymentFor,
                           notes: receipt.notes,
                         })
+                        setPreviewId(receipt._id)
                         setViewMode("preview")
                       }}
                     >

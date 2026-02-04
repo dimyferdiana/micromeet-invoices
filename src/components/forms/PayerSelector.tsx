@@ -14,6 +14,13 @@ import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { IconUser, IconPlus, IconEdit } from "@tabler/icons-react"
 
+export interface NewPayerInfo {
+  name: string
+  address: string
+  phone: string
+  email: string
+}
+
 interface PayerSelectorProps {
   value: string
   onChange: (name: string) => void
@@ -21,6 +28,8 @@ interface PayerSelectorProps {
   placeholder?: string
   saveNewPayer?: boolean
   onSaveNewPayerChange?: (save: boolean) => void
+  newPayerInfo?: NewPayerInfo
+  onNewPayerInfoChange?: (info: NewPayerInfo) => void
 }
 
 export function PayerSelector({
@@ -30,6 +39,8 @@ export function PayerSelector({
   placeholder = "Cari atau ketik nama...",
   saveNewPayer = false,
   onSaveNewPayerChange,
+  newPayerInfo,
+  onNewPayerInfoChange,
 }: PayerSelectorProps) {
   const customers = useQuery(api.customers.list)
   const [isNewMode, setIsNewMode] = useState(false)
@@ -76,12 +87,24 @@ export function PayerSelector({
     }
   }, [isNewPayer, saveNewPayer, onSaveNewPayerChange])
 
-  // If user is in new mode, show a dedicated input
+  // If user is in new mode, show full customer input fields
   if (isNewMode) {
+    const handleNewPayerFieldChange = (field: keyof NewPayerInfo, fieldValue: string) => {
+      if (field === "name") {
+        onChange(fieldValue)
+      }
+      onNewPayerInfoChange?.({
+        name: field === "name" ? fieldValue : value,
+        address: newPayerInfo?.address || "",
+        phone: newPayerInfo?.phone || "",
+        email: newPayerInfo?.email || "",
+        [field]: fieldValue,
+      })
+    }
+
     return (
-      <div className="space-y-2">
-        <Label>{label} *</Label>
-        <div className="flex items-center gap-2 text-xs text-primary bg-primary/10 p-2 rounded border border-primary/20 mb-2">
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-xs text-primary bg-primary/10 p-2 rounded border border-primary/20">
           <IconEdit className="h-4 w-4" />
           <span>Mode data baru aktif</span>
           <button
@@ -92,16 +115,49 @@ export function PayerSelector({
             Pilih dari daftar
           </button>
         </div>
-        <Input
-          ref={inputRef}
-          placeholder="Ketik nama pembayar..."
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full"
-        />
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>{label} *</Label>
+            <Input
+              ref={inputRef}
+              placeholder="Nama lengkap..."
+              value={value}
+              onChange={(e) => handleNewPayerFieldChange("name", e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>No. Telepon</Label>
+            <Input
+              placeholder="08xxx..."
+              value={newPayerInfo?.phone || ""}
+              onChange={(e) => handleNewPayerFieldChange("phone", e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Alamat</Label>
+          <Input
+            placeholder="Alamat lengkap..."
+            value={newPayerInfo?.address || ""}
+            onChange={(e) => handleNewPayerFieldChange("address", e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Email</Label>
+          <Input
+            type="email"
+            placeholder="email@example.com"
+            value={newPayerInfo?.email || ""}
+            onChange={(e) => handleNewPayerFieldChange("email", e.target.value)}
+          />
+        </div>
+
         {/* Show save checkbox for new payers */}
         {isNewPayer && onSaveNewPayerChange && (
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2 text-sm pt-2 border-t">
             <Checkbox
               id="save-payer"
               checked={saveNewPayer}

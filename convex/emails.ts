@@ -140,3 +140,46 @@ export const testConnection = action({
     }
   },
 });
+
+// Test SMTP connection using stored credentials
+export const testConnectionWithStoredPassword = action({
+  args: {},
+  handler: async (ctx) => {
+    // Get settings with actual password
+    const settings = await ctx.runQuery(api.emailSettings.getWithPassword);
+
+    if (!settings || !settings.smtpPassword) {
+      return { success: false, message: "Pengaturan SMTP belum lengkap. Silakan isi password terlebih dahulu." };
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: settings.smtpHost,
+      port: settings.smtpPort,
+      secure: settings.smtpSecure,
+      auth: {
+        user: settings.smtpUser,
+        pass: settings.smtpPassword,
+      },
+    });
+
+    try {
+      await transporter.verify();
+
+      // Update test status
+      await ctx.runMutation(api.emailSettings.updateTestStatus, {
+        status: "success",
+      });
+
+      return { success: true, message: "Koneksi SMTP berhasil!" };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+      // Update test status
+      await ctx.runMutation(api.emailSettings.updateTestStatus, {
+        status: "failed",
+      });
+
+      return { success: false, message: `Koneksi gagal: ${errorMessage}` };
+    }
+  },
+});

@@ -132,11 +132,15 @@ export function InvoicesPage() {
   if (viewMode === "create") {
     return (
       <div className="space-y-6">
-        <Button variant="ghost" onClick={() => setViewMode("list")} className="mb-4">
+        <Button variant="ghost" onClick={() => { setViewMode("list"); setPreviewData(null); }} className="mb-4">
           <IconArrowLeft className="h-4 w-4 mr-2" />
           Kembali ke Daftar
         </Button>
-        <InvoiceForm onPreview={handlePreview} onSaved={handleSaved} />
+        <InvoiceForm
+          initialData={previewData || undefined}
+          onPreview={handlePreview}
+          onSaved={handleSaved}
+        />
       </div>
     )
   }
@@ -144,11 +148,16 @@ export function InvoicesPage() {
   if (viewMode === "edit" && editId) {
     return (
       <div className="space-y-6">
-        <Button variant="ghost" onClick={() => { setViewMode("list"); setEditId(null); }} className="mb-4">
+        <Button variant="ghost" onClick={() => { setViewMode("list"); setEditId(null); setPreviewData(null); }} className="mb-4">
           <IconArrowLeft className="h-4 w-4 mr-2" />
           Kembali ke Daftar
         </Button>
-        <InvoiceForm editId={editId} onPreview={handlePreview} onSaved={handleSaved} />
+        <InvoiceForm
+          editId={editId}
+          initialData={previewData || undefined}
+          onPreview={handlePreview}
+          onSaved={handleSaved}
+        />
       </div>
     )
   }

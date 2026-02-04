@@ -15,15 +15,18 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CompanyInfoFields } from "./CompanyInfoFields"
-import { PayerSelector } from "./PayerSelector"
-import type { ReceiptFormData, CompanyInfo, PaymentMethod } from "@/lib/types"
+import { PayerSelector, type NewPayerInfo } from "./PayerSelector"
+import type { ReceiptFormData, CompanyInfo, PaymentMethod, ReceiptMode } from "@/lib/types"
+import { receiptModeLabels } from "@/lib/types"
 import { formatCurrency, getTodayDate, numberToWords } from "@/lib/utils"
-import { IconDeviceFloppy, IconEye } from "@tabler/icons-react"
+import { IconDeviceFloppy, IconEye, IconArrowDown, IconArrowUp } from "@tabler/icons-react"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { toast } from "sonner"
 
 interface ReceiptFormProps {
   editId?: string
+  /** Initial data to restore form state (e.g., when returning from preview) */
+  initialData?: ReceiptFormData
   onPreview?: (data: ReceiptFormData) => void
   onSaved?: () => void
 }
@@ -37,7 +40,7 @@ const defaultCompany: CompanyInfo = {
   taxId: "",
 }
 
-export function ReceiptForm({ editId, onPreview, onSaved }: ReceiptFormProps) {
+export function ReceiptForm({ editId, initialData, onPreview, onSaved }: ReceiptFormProps) {
   const isEditMode = !!editId
 
   const nextNumber = useQuery(api.documentNumbers.getNextNumber, { type: "receipt" })
@@ -53,20 +56,29 @@ export function ReceiptForm({ editId, onPreview, onSaved }: ReceiptFormProps) {
   const incrementCounter = useMutation(api.documentNumbers.incrementCounter)
 
   const [saveNewPayer, setSaveNewPayer] = useState(false)
-  const [formData, setFormData] = useState<ReceiptFormData>({
-    receiptNumber: "",
-    date: getTodayDate(),
-    company: defaultCompany,
-    receivedFrom: "",
-    amount: 0,
-    amountInWords: "",
-    paymentMethod: "cash",
-    paymentFor: "",
-    notes: "",
+  const [newPayerInfo, setNewPayerInfo] = useState<NewPayerInfo>({
+    name: "",
+    address: "",
+    phone: "",
+    email: "",
   })
+  const [formData, setFormData] = useState<ReceiptFormData>(
+    initialData || {
+      receiptNumber: "",
+      date: getTodayDate(),
+      company: defaultCompany,
+      mode: "receive",
+      receivedFrom: "",
+      amount: 0,
+      amountInWords: "",
+      paymentMethod: "cash",
+      paymentFor: "",
+      notes: "",
+    }
+  )
 
   const [isSaving, setIsSaving] = useState(false)
-  const [isLoaded, setIsLoaded] = useState(!isEditMode)
+  const [isLoaded, setIsLoaded] = useState(!!initialData || !isEditMode)
 
   // Load existing receipt data for edit mode
   useEffect(() => {
@@ -75,6 +87,7 @@ export function ReceiptForm({ editId, onPreview, onSaved }: ReceiptFormProps) {
         receiptNumber: existingReceipt.receiptNumber,
         date: existingReceipt.date,
         company: existingReceipt.company,
+        mode: existingReceipt.mode || "receive",
         receivedFrom: existingReceipt.receivedFrom,
         amount: existingReceipt.amount,
         amountInWords: existingReceipt.amountInWords,
@@ -86,16 +99,16 @@ export function ReceiptForm({ editId, onPreview, onSaved }: ReceiptFormProps) {
     }
   }, [isEditMode, existingReceipt])
 
-  // Set receipt number from counter (only for create mode)
+  // Set receipt number from counter (only for create mode without initialData)
   useEffect(() => {
-    if (!isEditMode && nextNumber?.number) {
+    if (!isEditMode && !initialData && nextNumber?.number) {
       setFormData((prev) => ({ ...prev, receiptNumber: nextNumber.number }))
     }
-  }, [isEditMode, nextNumber])
+  }, [isEditMode, initialData, nextNumber])
 
-  // Set company info from settings (only for create mode)
+  // Set company info from settings (only for create mode without initialData)
   useEffect(() => {
-    if (!isEditMode && companySettings) {
+    if (!isEditMode && !initialData && companySettings) {
       setFormData((prev) => ({
         ...prev,
         company: {
@@ -108,7 +121,7 @@ export function ReceiptForm({ editId, onPreview, onSaved }: ReceiptFormProps) {
         },
       }))
     }
-  }, [isEditMode, companySettings])
+  }, [isEditMode, initialData, companySettings])
 
   // Update amount in words when amount changes
   useEffect(() => {
@@ -129,8 +142,11 @@ export function ReceiptForm({ editId, onPreview, onSaved }: ReceiptFormProps) {
       if (saveNewPayer && formData.receivedFrom) {
         await createCustomer({
           name: formData.receivedFrom,
-          address: "",
+          address: newPayerInfo.address || "",
+          phone: newPayerInfo.phone || undefined,
+          email: newPayerInfo.email || undefined,
         })
+        toast.success("Pelanggan baru berhasil disimpan")
       }
 
       if (isEditMode && editId) {
@@ -176,6 +192,38 @@ export function ReceiptForm({ editId, onPreview, onSaved }: ReceiptFormProps) {
           <CardTitle>{isEditMode ? "Edit Kwitansi" : "Buat Kwitansi Baru"}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Mode Switcher */}
+          <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+            <Label className="text-sm font-medium">Jenis Transaksi:</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={formData.mode === "receive" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFormData((prev) => ({ ...prev, mode: "receive" as ReceiptMode }))}
+                className="gap-2"
+              >
+                <IconArrowDown className="h-4 w-4" />
+                {receiptModeLabels.receive}
+              </Button>
+              <Button
+                type="button"
+                variant={formData.mode === "send" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFormData((prev) => ({ ...prev, mode: "send" as ReceiptMode }))}
+                className="gap-2"
+              >
+                <IconArrowUp className="h-4 w-4" />
+                {receiptModeLabels.send}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground ml-auto">
+              {formData.mode === "receive"
+                ? "Perusahaan menerima uang dari pihak lain"
+                : "Perusahaan mengirim uang ke pihak lain"}
+            </p>
+          </div>
+
           {/* Document Info */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -207,7 +255,7 @@ export function ReceiptForm({ editId, onPreview, onSaved }: ReceiptFormProps) {
           <CompanyInfoFields
             company={formData.company}
             onChange={updateCompany}
-            title="Informasi Penerima (Perusahaan)"
+            title={formData.mode === "receive" ? "Informasi Penerima (Perusahaan)" : "Informasi Pengirim (Perusahaan)"}
           />
 
           <Separator />
@@ -219,10 +267,12 @@ export function ReceiptForm({ editId, onPreview, onSaved }: ReceiptFormProps) {
             <PayerSelector
               value={formData.receivedFrom}
               onChange={(name) => setFormData((prev) => ({ ...prev, receivedFrom: name }))}
-              label="Diterima Dari"
-              placeholder="Pilih atau ketik nama pembayar..."
+              label={formData.mode === "receive" ? "Diterima Dari" : "Dikirim Kepada"}
+              placeholder={formData.mode === "receive" ? "Pilih atau ketik nama pembayar..." : "Pilih atau ketik nama penerima..."}
               saveNewPayer={saveNewPayer}
               onSaveNewPayerChange={setSaveNewPayer}
+              newPayerInfo={newPayerInfo}
+              onNewPayerInfoChange={setNewPayerInfo}
             />
 
             <div className="grid grid-cols-2 gap-4">

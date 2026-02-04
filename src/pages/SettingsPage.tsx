@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { FileUpload } from "@/components/ui/file-upload"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { EmailSettingsCard } from "@/components/settings/EmailSettingsCard"
 import { EmailTemplateCard } from "@/components/settings/EmailTemplateCard"
 import { ReminderSettingsCard } from "@/components/settings/ReminderSettingsCard"
@@ -37,6 +38,10 @@ import {
   IconTrash,
   IconStar,
   IconStarFilled,
+  IconBuilding,
+  IconCreditCard,
+  IconPhoto,
+  IconMail,
 } from "@tabler/icons-react"
 import type { Id } from "../../convex/_generated/dataModel"
 import { toast } from "sonner"
@@ -94,6 +99,7 @@ export function SettingsPage() {
   const updateCompanyStamp = useMutation(api.files.updateCompanyStamp)
   const removeCompanyStamp = useMutation(api.files.removeCompanyStamp)
 
+  const [activeTab, setActiveTab] = useState("company")
   const [formData, setFormData] = useState<CompanyFormData>(defaultCompany)
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -249,247 +255,278 @@ export function SettingsPage() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Informasi Perusahaan</CardTitle>
-            <CardDescription>
-              Data ini akan otomatis digunakan saat membuat invoice, PO, atau kwitansi
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nama Perusahaan *</Label>
-                <Input
-                  id="name"
-                  placeholder="PT. Contoh Perusahaan"
-                  value={formData.name}
-                  onChange={(e) => updateField("name", e.target.value)}
-                  required
-                />
-              </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+          <TabsTrigger value="company" className="gap-2">
+            <IconBuilding className="h-4 w-4" />
+            <span className="hidden sm:inline">Perusahaan</span>
+          </TabsTrigger>
+          <TabsTrigger value="bank" className="gap-2">
+            <IconCreditCard className="h-4 w-4" />
+            <span className="hidden sm:inline">Rekening</span>
+          </TabsTrigger>
+          <TabsTrigger value="branding" className="gap-2">
+            <IconPhoto className="h-4 w-4" />
+            <span className="hidden sm:inline">Branding</span>
+          </TabsTrigger>
+          <TabsTrigger value="email" className="gap-2">
+            <IconMail className="h-4 w-4" />
+            <span className="hidden sm:inline">Email</span>
+          </TabsTrigger>
+        </TabsList>
 
-              <div className="space-y-2">
-                <Label htmlFor="address">Alamat *</Label>
-                <Textarea
-                  id="address"
-                  placeholder="Jl. Contoh No. 123, Jakarta Selatan, DKI Jakarta 12345"
-                  value={formData.address}
-                  onChange={(e) => updateField("address", e.target.value)}
-                  rows={3}
-                  required
-                />
-              </div>
+        {/* Company Info Tab */}
+        <TabsContent value="company">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Informasi Perusahaan</CardTitle>
+                <CardDescription>
+                  Data ini akan otomatis digunakan saat membuat invoice, PO, atau kwitansi
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nama Perusahaan *</Label>
+                    <Input
+                      id="name"
+                      placeholder="PT. Contoh Perusahaan"
+                      value={formData.name}
+                      onChange={(e) => updateField("name", e.target.value)}
+                      required
+                    />
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Telepon</Label>
-                  <Input
-                    id="phone"
-                    placeholder="021-12345678"
-                    value={formData.phone}
-                    onChange={(e) => updateField("phone", e.target.value)}
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Alamat *</Label>
+                    <Textarea
+                      id="address"
+                      placeholder="Jl. Contoh No. 123, Jakarta Selatan, DKI Jakarta 12345"
+                      value={formData.address}
+                      onChange={(e) => updateField("address", e.target.value)}
+                      rows={3}
+                      required
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="info@perusahaan.com"
-                    value={formData.email}
-                    onChange={(e) => updateField("email", e.target.value)}
-                  />
-                </div>
-              </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Telepon</Label>
+                      <Input
+                        id="phone"
+                        placeholder="021-12345678"
+                        value={formData.phone}
+                        onChange={(e) => updateField("phone", e.target.value)}
+                      />
+                    </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="website">Website</Label>
-                  <Input
-                    id="website"
-                    placeholder="www.perusahaan.com"
-                    value={formData.website}
-                    onChange={(e) => updateField("website", e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="taxId">NPWP</Label>
-                  <Input
-                    id="taxId"
-                    placeholder="00.000.000.0-000.000"
-                    value={formData.taxId}
-                    onChange={(e) => updateField("taxId", e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="flex justify-end">
-          <Button type="submit" disabled={isSaving} className="w-40">
-            {saveSuccess ? (
-              <>
-                <IconCheck className="h-4 w-4 mr-2" />
-                Tersimpan!
-              </>
-            ) : isSaving ? (
-              "Menyimpan..."
-            ) : (
-              <>
-                <IconDeviceFloppy className="h-4 w-4 mr-2" />
-                Simpan Pengaturan
-              </>
-            )}
-          </Button>
-        </div>
-      </form>
-
-      {/* Bank Accounts Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Rekening Bank</CardTitle>
-              <CardDescription>
-                Daftar rekening bank untuk pembayaran invoice
-              </CardDescription>
-            </div>
-            <Button onClick={() => handleOpenBankDialog()}>
-              <IconPlus className="h-4 w-4 mr-2" />
-              Tambah Rekening
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {!bankAccounts || bankAccounts.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              Belum ada rekening bank. Tambahkan rekening pertama Anda.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {bankAccounts.map((account) => (
-                <div
-                  key={account._id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => handleSetDefault(account._id)}
-                      className="text-yellow-500 hover:text-yellow-600"
-                      title={account.isDefault ? "Rekening Utama" : "Jadikan Rekening Utama"}
-                    >
-                      {account.isDefault ? (
-                        <IconStarFilled className="h-5 w-5" />
-                      ) : (
-                        <IconStar className="h-5 w-5" />
-                      )}
-                    </button>
-                    <div>
-                      <p className="font-medium">{account.bankName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {account.accountNumber} • a.n. {account.accountHolder}
-                      </p>
-                      {account.branch && (
-                        <p className="text-xs text-muted-foreground">
-                          Cabang: {account.branch}
-                        </p>
-                      )}
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="info@perusahaan.com"
+                        value={formData.email}
+                        onChange={(e) => updateField("email", e.target.value)}
+                      />
                     </div>
                   </div>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleOpenBankDialog(account)}
-                    >
-                      <IconEdit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => setDeleteBankId(account._id)}
-                    >
-                      <IconTrash className="h-4 w-4" />
-                    </Button>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="website">Website</Label>
+                      <Input
+                        id="website"
+                        placeholder="www.perusahaan.com"
+                        value={formData.website}
+                        onChange={(e) => updateField("website", e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="taxId">NPWP</Label>
+                      <Input
+                        id="taxId"
+                        placeholder="00.000.000.0-000.000"
+                        value={formData.taxId}
+                        onChange={(e) => updateField("taxId", e.target.value)}
+                      />
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </CardContent>
+            </Card>
 
-      {/* Branding Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Logo & Branding</CardTitle>
-          <CardDescription>
-            Upload logo perusahaan untuk ditampilkan pada dokumen
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <FileUpload
-            currentImageUrl={companySettings?.logoUrl}
-            onUpload={handleLogoUpload}
-            onRemove={handleLogoRemove}
-            label="Upload Logo"
-            description="PNG, JPG atau SVG (max 2MB)"
-          />
-        </CardContent>
-      </Card>
+            <div className="flex justify-end">
+              <Button type="submit" disabled={isSaving} className="w-40">
+                {saveSuccess ? (
+                  <>
+                    <IconCheck className="h-4 w-4 mr-2" />
+                    Tersimpan!
+                  </>
+                ) : isSaving ? (
+                  "Menyimpan..."
+                ) : (
+                  <>
+                    <IconDeviceFloppy className="h-4 w-4 mr-2" />
+                    Simpan Pengaturan
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </TabsContent>
 
-      {/* Signature & Stamp Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Tanda Tangan & Stempel</CardTitle>
-          <CardDescription>
-            Upload tanda tangan dan stempel untuk ditampilkan pada dokumen
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <Label className="mb-3 block">Tanda Tangan</Label>
-              <FileUpload
-                currentImageUrl={companySettings?.signatureUrl}
-                onUpload={handleSignatureUpload}
-                onRemove={handleSignatureRemove}
-                label="Upload Tanda Tangan"
-                description="PNG atau JPG dengan latar transparan"
-              />
-            </div>
-            <div>
-              <Label className="mb-3 block">Stempel Perusahaan</Label>
-              <FileUpload
-                currentImageUrl={companySettings?.stampUrl}
-                onUpload={handleStampUpload}
-                onRemove={handleStampRemove}
-                label="Upload Stempel"
-                description="PNG atau JPG dengan latar transparan"
-              />
-            </div>
+        {/* Bank Accounts Tab */}
+        <TabsContent value="bank">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Rekening Bank</CardTitle>
+                  <CardDescription>
+                    Daftar rekening bank untuk pembayaran invoice
+                  </CardDescription>
+                </div>
+                <Button onClick={() => handleOpenBankDialog()}>
+                  <IconPlus className="h-4 w-4 mr-2" />
+                  Tambah Rekening
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {!bankAccounts || bankAccounts.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  Belum ada rekening bank. Tambahkan rekening pertama Anda.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {bankAccounts.map((account) => (
+                    <div
+                      key={account._id}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleSetDefault(account._id)}
+                          className="text-yellow-500 hover:text-yellow-600"
+                          title={account.isDefault ? "Rekening Utama" : "Jadikan Rekening Utama"}
+                        >
+                          {account.isDefault ? (
+                            <IconStarFilled className="h-5 w-5" />
+                          ) : (
+                            <IconStar className="h-5 w-5" />
+                          )}
+                        </button>
+                        <div>
+                          <p className="font-medium">{account.bankName}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {account.accountNumber} • a.n. {account.accountHolder}
+                          </p>
+                          {account.branch && (
+                            <p className="text-xs text-muted-foreground">
+                              Cabang: {account.branch}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleOpenBankDialog(account)}
+                        >
+                          <IconEdit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => setDeleteBankId(account._id)}
+                        >
+                          <IconTrash className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Branding Tab */}
+        <TabsContent value="branding">
+          <div className="space-y-6">
+            {/* Logo Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Logo Perusahaan</CardTitle>
+                <CardDescription>
+                  Upload logo perusahaan untuk ditampilkan pada dokumen
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FileUpload
+                  currentImageUrl={companySettings?.logoUrl}
+                  onUpload={handleLogoUpload}
+                  onRemove={handleLogoRemove}
+                  label="Upload Logo"
+                  description="PNG, JPG atau SVG (max 2MB)"
+                />
+              </CardContent>
+            </Card>
+
+            {/* Signature & Stamp Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Tanda Tangan & Stempel</CardTitle>
+                <CardDescription>
+                  Upload tanda tangan dan stempel untuk ditampilkan pada dokumen
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <Label className="mb-3 block">Tanda Tangan</Label>
+                    <FileUpload
+                      currentImageUrl={companySettings?.signatureUrl}
+                      onUpload={handleSignatureUpload}
+                      onRemove={handleSignatureRemove}
+                      label="Upload Tanda Tangan"
+                      description="PNG atau JPG dengan latar transparan"
+                    />
+                  </div>
+                  <div>
+                    <Label className="mb-3 block">Stempel Perusahaan</Label>
+                    <FileUpload
+                      currentImageUrl={companySettings?.stampUrl}
+                      onUpload={handleStampUpload}
+                      onRemove={handleStampRemove}
+                      label="Upload Stempel"
+                      description="PNG atau JPG dengan latar transparan"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Watermark Section */}
+            <WatermarkSettingsCard />
           </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
 
-      {/* Watermark Settings Section */}
-      <WatermarkSettingsCard />
-
-      {/* Email Settings Section */}
-      <EmailSettingsCard />
-
-      {/* Email Template Section */}
-      <EmailTemplateCard />
-
-      {/* Auto-Reminder Section */}
-      <ReminderSettingsCard />
+        {/* Email Tab */}
+        <TabsContent value="email">
+          <div className="space-y-6">
+            <EmailSettingsCard />
+            <EmailTemplateCard />
+            <ReminderSettingsCard />
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Bank Account Dialog */}
       <Dialog open={bankDialogOpen} onOpenChange={setBankDialogOpen}>

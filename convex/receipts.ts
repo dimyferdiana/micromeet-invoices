@@ -37,6 +37,7 @@ export const create = mutation({
     receiptNumber: v.string(),
     date: v.string(),
     company: companyInfoValidator,
+    mode: v.optional(v.union(v.literal("receive"), v.literal("send"))),
     receivedFrom: v.string(),
     amount: v.number(),
     amountInWords: v.string(),
@@ -53,6 +54,7 @@ export const create = mutation({
     const now = Date.now();
     return await ctx.db.insert("receipts", {
       ...args,
+      mode: args.mode || "receive", // Default to "receive" mode
       createdAt: now,
       updatedAt: now,
     });
@@ -65,6 +67,7 @@ export const update = mutation({
     receiptNumber: v.optional(v.string()),
     date: v.optional(v.string()),
     company: v.optional(companyInfoValidator),
+    mode: v.optional(v.union(v.literal("receive"), v.literal("send"))),
     receivedFrom: v.optional(v.string()),
     amount: v.optional(v.number()),
     amountInWords: v.optional(v.string()),

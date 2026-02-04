@@ -5,6 +5,7 @@ import { Header } from "@/components/layout/Header"
 import { PurchaseOrderForm } from "@/components/forms/PurchaseOrderForm"
 import { PurchaseOrderPreview } from "@/components/previews/PurchaseOrderPreview"
 import { StatusDropdown } from "@/components/forms/StatusDropdown"
+import { EmailDialog } from "@/components/forms/EmailDialog"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { SearchInput } from "@/components/ui/search-input"
@@ -29,7 +30,8 @@ import {
 import type { POFormData, POStatus } from "@/lib/types"
 import { statusLabels } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import { IconArrowLeft, IconPrinter, IconEye, IconTrash, IconEdit } from "@tabler/icons-react"
+import { downloadPOPdf } from "@/lib/pdf"
+import { IconArrowLeft, IconPrinter, IconEye, IconTrash, IconEdit, IconMail, IconLoader2 } from "@tabler/icons-react"
 import type { Id } from "../../convex/_generated/dataModel"
 import { toast } from "sonner"
 import { useDebounce } from "@/hooks/useDebounce"
@@ -51,12 +53,16 @@ export function PurchaseOrdersPage() {
   }), [debouncedSearch, statusFilter, startDate, endDate])
 
   const purchaseOrders = useQuery(api.purchaseOrders.search, searchArgs)
+  const companySettings = useQuery(api.companySettings.getWithUrls)
   const deletePO = useMutation(api.purchaseOrders.remove)
 
   const [viewMode, setViewMode] = useState<ViewMode>("list")
   const [previewData, setPreviewData] = useState<POFormData | null>(null)
+  const [previewId, setPreviewId] = useState<string | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false)
+  const [isPrinting, setIsPrinting] = useState(false)
 
   const handlePreview = (data: POFormData) => {
     setPreviewData(data)
@@ -86,18 +92,45 @@ export function PurchaseOrdersPage() {
     }
   }
 
-  const handlePrint = () => {
-    window.print()
+  const handlePrint = async () => {
+    if (!previewData) return
+
+    setIsPrinting(true)
+    try {
+      // Watermark options from company settings
+      const watermark = companySettings?.watermarkEnabled ? {
+        enabled: true,
+        text: companySettings.watermarkText || companySettings.name,
+        opacity: companySettings.watermarkOpacity ?? 10,
+      } : undefined
+
+      await downloadPOPdf(
+        previewData,
+        `${previewData.poNumber}.pdf`,
+        companySettings?.logoUrl || undefined,
+        watermark
+      )
+      toast.success("PDF berhasil diunduh")
+    } catch (error) {
+      console.error("Failed to generate PDF:", error)
+      toast.error("Gagal membuat PDF")
+    } finally {
+      setIsPrinting(false)
+    }
   }
 
   if (viewMode === "create") {
     return (
       <div className="space-y-6">
-        <Button variant="ghost" onClick={() => setViewMode("list")} className="mb-4">
+        <Button variant="ghost" onClick={() => { setViewMode("list"); setPreviewData(null); }} className="mb-4">
           <IconArrowLeft className="h-4 w-4 mr-2" />
           Kembali ke Daftar
         </Button>
-        <PurchaseOrderForm onPreview={handlePreview} onSaved={handleSaved} />
+        <PurchaseOrderForm
+          initialData={previewData || undefined}
+          onPreview={handlePreview}
+          onSaved={handleSaved}
+        />
       </div>
     )
   }
@@ -105,11 +138,16 @@ export function PurchaseOrdersPage() {
   if (viewMode === "edit" && editId) {
     return (
       <div className="space-y-6">
-        <Button variant="ghost" onClick={() => { setViewMode("list"); setEditId(null); }} className="mb-4">
+        <Button variant="ghost" onClick={() => { setViewMode("list"); setEditId(null); setPreviewData(null); }} className="mb-4">
           <IconArrowLeft className="h-4 w-4 mr-2" />
           Kembali ke Daftar
         </Button>
-        <PurchaseOrderForm editId={editId} onPreview={handlePreview} onSaved={handleSaved} />
+        <PurchaseOrderForm
+          editId={editId}
+          initialData={previewData || undefined}
+          onPreview={handlePreview}
+          onSaved={handleSaved}
+        />
       </div>
     )
   }
@@ -122,12 +160,47 @@ export function PurchaseOrdersPage() {
             <IconArrowLeft className="h-4 w-4 mr-2" />
             Kembali ke Form
           </Button>
-          <Button onClick={handlePrint}>
-            <IconPrinter className="h-4 w-4 mr-2" />
-            Print / Download
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setEmailDialogOpen(true)}>
+              <IconMail className="h-4 w-4 mr-2" />
+              Kirim Email
+            </Button>
+            <Button onClick={handlePrint} disabled={isPrinting}>
+              {isPrinting ? (
+                <>
+                  <IconLoader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Membuat PDF...
+                </>
+              ) : (
+                <>
+                  <IconPrinter className="h-4 w-4 mr-2" />
+                  Download PDF
+                </>
+              )}
+            </Button>
+          </div>
         </div>
         <PurchaseOrderPreview data={previewData} />
+
+        {/* Email Dialog */}
+        <EmailDialog
+          open={emailDialogOpen}
+          onOpenChange={setEmailDialogOpen}
+          documentType="purchaseOrder"
+          documentId={previewId || ""}
+          documentNumber={previewData.poNumber}
+          recipientEmail={previewData.vendor.email}
+          recipientName={previewData.vendor.name}
+          total={previewData.total}
+          companyName={previewData.company.name}
+          poData={previewData}
+          logoUrl={companySettings?.logoUrl || undefined}
+          watermark={companySettings?.watermarkEnabled ? {
+            enabled: true,
+            text: companySettings.watermarkText || companySettings.name,
+            opacity: companySettings.watermarkOpacity ?? 10,
+          } : undefined}
+        />
       </div>
     )
   }
@@ -235,6 +308,7 @@ export function PurchaseOrdersPage() {
                           terms: po.terms,
                           status: po.status,
                         })
+                        setPreviewId(po._id)
                         setViewMode("preview")
                       }}
                     >

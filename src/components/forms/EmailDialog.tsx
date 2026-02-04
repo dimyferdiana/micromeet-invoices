@@ -16,10 +16,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { IconSend, IconLoader2, IconMail, IconAlertCircle, IconPaperclip } from "@tabler/icons-react"
 import { toast } from "sonner"
-import type { DocumentType, InvoiceFormData } from "@/lib/types"
+import type { DocumentType, InvoiceFormData, POFormData, ReceiptFormData } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { emailStatusLabels, emailStatusColors } from "@/lib/types"
-import { generateInvoicePdfBase64 } from "@/lib/pdf"
+import { generateInvoicePdfBase64, generatePOPdfBase64, generateReceiptPdfBase64 } from "@/lib/pdf"
 
 interface EmailDialogProps {
   open: boolean
@@ -34,7 +34,11 @@ interface EmailDialogProps {
   companyName: string
   /** Invoice data for PDF generation */
   invoiceData?: InvoiceFormData
-  /** Bank account for PDF */
+  /** Purchase Order data for PDF generation */
+  poData?: POFormData
+  /** Receipt data for PDF generation */
+  receiptData?: ReceiptFormData
+  /** Bank account for PDF (only for invoices) */
   bankAccount?: {
     bankName: string
     accountNumber: string
@@ -63,6 +67,8 @@ export function EmailDialog({
   dueDate,
   companyName,
   invoiceData,
+  poData,
+  receiptData,
   bankAccount,
   logoUrl,
   watermark,
@@ -130,19 +136,25 @@ export function EmailDialog({
     setIsSending(true)
 
     try {
-      // Generate PDF if invoice data is available
+      // Generate PDF based on document type
       let pdfBase64: string | undefined
       let pdfFilename: string | undefined
 
-      if (invoiceData && documentType === "invoice") {
-        try {
-          toast.info("Membuat PDF...")
+      try {
+        toast.info("Membuat PDF...")
+        if (invoiceData && documentType === "invoice") {
           pdfBase64 = await generateInvoicePdfBase64(invoiceData, bankAccount, logoUrl, watermark)
           pdfFilename = `${documentNumber}.pdf`
-        } catch (pdfError) {
-          console.error("Failed to generate PDF:", pdfError)
-          toast.warning("Gagal membuat PDF, email akan dikirim tanpa lampiran")
+        } else if (poData && documentType === "purchaseOrder") {
+          pdfBase64 = await generatePOPdfBase64(poData, logoUrl, watermark)
+          pdfFilename = `${documentNumber}.pdf`
+        } else if (receiptData && documentType === "receipt") {
+          pdfBase64 = await generateReceiptPdfBase64(receiptData, logoUrl, watermark)
+          pdfFilename = `${documentNumber}.pdf`
         }
+      } catch (pdfError) {
+        console.error("Failed to generate PDF:", pdfError)
+        toast.warning("Gagal membuat PDF, email akan dikirim tanpa lampiran")
       }
 
       // Convert message to HTML (simple formatting)
@@ -279,14 +291,17 @@ export function EmailDialog({
                 <Label htmlFor="message">Pesan</Label>
                 <Textarea
                   id="message"
-                  rows={10}
+                  rows={8}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
+                  className="max-h-48 overflow-y-auto resize-y"
                 />
               </div>
 
               {/* PDF Attachment Indicator */}
-              {invoiceData && documentType === "invoice" && (
+              {((invoiceData && documentType === "invoice") ||
+                (poData && documentType === "purchaseOrder") ||
+                (receiptData && documentType === "receipt")) && (
                 <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <IconPaperclip className="h-4 w-4 text-blue-600" />
                   <span className="text-sm text-blue-700">

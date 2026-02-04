@@ -19,6 +19,8 @@ import { toast } from "sonner"
 
 interface PurchaseOrderFormProps {
   editId?: string
+  /** Initial data to restore form state (e.g., when returning from preview) */
+  initialData?: POFormData
   onPreview?: (data: POFormData) => void
   onSaved?: () => void
 }
@@ -39,7 +41,7 @@ const defaultVendor: CustomerInfo = {
   email: "",
 }
 
-export function PurchaseOrderForm({ editId, onPreview, onSaved }: PurchaseOrderFormProps) {
+export function PurchaseOrderForm({ editId, initialData, onPreview, onSaved }: PurchaseOrderFormProps) {
   const isEditMode = !!editId
 
   const nextNumber = useQuery(api.documentNumbers.getNextNumber, { type: "purchaseOrder" })
@@ -55,25 +57,27 @@ export function PurchaseOrderForm({ editId, onPreview, onSaved }: PurchaseOrderF
   const incrementCounter = useMutation(api.documentNumbers.incrementCounter)
 
   const [saveNewVendor, setSaveNewVendor] = useState(false)
-  const [formData, setFormData] = useState<POFormData>({
-    poNumber: "",
-    date: getTodayDate(),
-    expectedDeliveryDate: "",
-    company: defaultCompany,
-    vendor: defaultVendor,
-    items: [{ description: "", quantity: 1, unitPrice: 0, amount: 0 }],
-    subtotal: 0,
-    taxRate: 11,
-    taxAmount: 0,
-    total: 0,
-    shippingAddress: "",
-    notes: "",
-    terms: "1. Barang yang sudah dibeli tidak dapat dikembalikan.\n2. Pembayaran dilakukan dalam waktu 30 hari setelah barang diterima.",
-    status: "draft",
-  })
+  const [formData, setFormData] = useState<POFormData>(
+    initialData || {
+      poNumber: "",
+      date: getTodayDate(),
+      expectedDeliveryDate: "",
+      company: defaultCompany,
+      vendor: defaultVendor,
+      items: [{ description: "", quantity: 1, unitPrice: 0, amount: 0 }],
+      subtotal: 0,
+      taxRate: 11,
+      taxAmount: 0,
+      total: 0,
+      shippingAddress: "",
+      notes: "",
+      terms: "1. Barang yang sudah dibeli tidak dapat dikembalikan.\n2. Pembayaran dilakukan dalam waktu 30 hari setelah barang diterima.",
+      status: "draft",
+    }
+  )
 
   const [isSaving, setIsSaving] = useState(false)
-  const [isLoaded, setIsLoaded] = useState(!isEditMode)
+  const [isLoaded, setIsLoaded] = useState(!!initialData || !isEditMode)
 
   // Load existing PO data for edit mode
   useEffect(() => {
@@ -98,16 +102,16 @@ export function PurchaseOrderForm({ editId, onPreview, onSaved }: PurchaseOrderF
     }
   }, [isEditMode, existingPO])
 
-  // Set PO number from counter (only for create mode)
+  // Set PO number from counter (only for create mode without initialData)
   useEffect(() => {
-    if (!isEditMode && nextNumber?.number) {
+    if (!isEditMode && !initialData && nextNumber?.number) {
       setFormData((prev) => ({ ...prev, poNumber: nextNumber.number }))
     }
-  }, [isEditMode, nextNumber])
+  }, [isEditMode, initialData, nextNumber])
 
-  // Set company info from settings (only for create mode)
+  // Set company info from settings (only for create mode without initialData)
   useEffect(() => {
-    if (!isEditMode && companySettings) {
+    if (!isEditMode && !initialData && companySettings) {
       setFormData((prev) => ({
         ...prev,
         company: {
@@ -121,7 +125,7 @@ export function PurchaseOrderForm({ editId, onPreview, onSaved }: PurchaseOrderF
         shippingAddress: companySettings.address,
       }))
     }
-  }, [isEditMode, companySettings])
+  }, [isEditMode, initialData, companySettings])
 
   // Calculate totals when items or tax rate changes
   useEffect(() => {

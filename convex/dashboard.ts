@@ -147,6 +147,7 @@ export const getRecentDocuments = query({
     // Combine and sort by creation date
     const allDocs = [
       ...invoices.map((inv) => ({
+        id: inv._id,
         type: "invoice" as const,
         number: inv.invoiceNumber,
         name: inv.customer.name,
@@ -156,6 +157,7 @@ export const getRecentDocuments = query({
         createdAt: inv.createdAt,
       })),
       ...purchaseOrders.map((po) => ({
+        id: po._id,
         type: "purchaseOrder" as const,
         number: po.poNumber,
         name: po.vendor.name,
@@ -165,6 +167,7 @@ export const getRecentDocuments = query({
         createdAt: po.createdAt,
       })),
       ...receipts.map((r) => ({
+        id: r._id,
         type: "receipt" as const,
         number: r.receiptNumber,
         name: r.receivedFrom,

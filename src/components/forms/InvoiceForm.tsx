@@ -19,6 +19,8 @@ import { toast } from "sonner"
 
 interface InvoiceFormProps {
   editId?: string
+  /** Initial data to restore form state (e.g., when returning from preview) */
+  initialData?: InvoiceFormData
   onPreview?: (data: InvoiceFormData) => void
   onSaved?: () => void
 }
@@ -39,7 +41,7 @@ const defaultCustomer: CustomerInfo = {
   email: "",
 }
 
-export function InvoiceForm({ editId, onPreview, onSaved }: InvoiceFormProps) {
+export function InvoiceForm({ editId, initialData, onPreview, onSaved }: InvoiceFormProps) {
   const isEditMode = !!editId
 
   const nextNumber = useQuery(api.documentNumbers.getNextNumber, { type: "invoice" })
@@ -55,23 +57,26 @@ export function InvoiceForm({ editId, onPreview, onSaved }: InvoiceFormProps) {
   const incrementCounter = useMutation(api.documentNumbers.incrementCounter)
 
   const [saveNewCustomer, setSaveNewCustomer] = useState(false)
-  const [formData, setFormData] = useState<InvoiceFormData>({
-    invoiceNumber: "",
-    date: getTodayDate(),
-    dueDate: getDefaultDueDate(),
-    company: defaultCompany,
-    customer: defaultCustomer,
-    items: [{ description: "", quantity: 1, unitPrice: 0, amount: 0 }],
-    subtotal: 0,
-    taxRate: 11,
-    taxAmount: 0,
-    total: 0,
-    notes: "",
-    status: "draft",
-  })
+  const [formData, setFormData] = useState<InvoiceFormData>(
+    initialData || {
+      invoiceNumber: "",
+      date: getTodayDate(),
+      dueDate: getDefaultDueDate(),
+      company: defaultCompany,
+      customer: defaultCustomer,
+      items: [{ description: "", quantity: 1, unitPrice: 0, amount: 0 }],
+      subtotal: 0,
+      taxRate: 11,
+      taxAmount: 0,
+      total: 0,
+      notes: "",
+      status: "draft",
+    }
+  )
 
   const [isSaving, setIsSaving] = useState(false)
-  const [isLoaded, setIsLoaded] = useState(!isEditMode)
+  // Form is loaded if: we have initialData, OR it's not edit mode (create), OR edit mode with data loaded
+  const [isLoaded, setIsLoaded] = useState(!!initialData || !isEditMode)
 
   // Load existing invoice data for edit mode
   useEffect(() => {
@@ -94,16 +99,16 @@ export function InvoiceForm({ editId, onPreview, onSaved }: InvoiceFormProps) {
     }
   }, [isEditMode, existingInvoice])
 
-  // Set invoice number from counter (only for create mode)
+  // Set invoice number from counter (only for create mode without initialData)
   useEffect(() => {
-    if (!isEditMode && nextNumber?.number) {
+    if (!isEditMode && !initialData && nextNumber?.number) {
       setFormData((prev) => ({ ...prev, invoiceNumber: nextNumber.number }))
     }
-  }, [isEditMode, nextNumber])
+  }, [isEditMode, initialData, nextNumber])
 
-  // Set company info from settings (only for create mode)
+  // Set company info from settings (only for create mode without initialData)
   useEffect(() => {
-    if (!isEditMode && companySettings) {
+    if (!isEditMode && !initialData && companySettings) {
       setFormData((prev) => ({
         ...prev,
         company: {
@@ -116,7 +121,7 @@ export function InvoiceForm({ editId, onPreview, onSaved }: InvoiceFormProps) {
         },
       }))
     }
-  }, [isEditMode, companySettings])
+  }, [isEditMode, initialData, companySettings])
 
   // Calculate totals when items or tax rate changes
   useEffect(() => {
